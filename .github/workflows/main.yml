@@ -1,19 +1,22 @@
-name: Monitor Parser
+name: Monitor Parser (24/7, вікна по 5 годин)
 
-# ⚠️ Розклад (schedule) вимкнено: цей одноразовий "доганяючий" режим
-# конфліктував би з .github/workflows/monitor_247.yml — обидва пишуть
-# і комітять ті самі targets.json / parser_state.json. Лишаємо тільки
-# workflow_dispatch (ручний запуск), якщо колись знадобиться цей режим
-# замість постійного. Щоб повернути крон — розкоментуй рядок нижче.
+# Ідея: GitHub Actions не вміє тримати процес живим вічно (ліміт джоби —
+# 360 хв / 6 год на стандартних раннерах), тож ми імітуємо 24/7 вікнами:
+# кожні 5 годин запускається новий прогін, який сам живе ~5 годин
+# (постійно слухаючи Telegram), а потім акуратно завершується — і крон
+# запускає наступне вікно. Кожне повідомлення, яке бачить парсер, пишеться
+# у messages_log.jsonl одразу, а не тільки в кінці — і коммітиться в git
+# кожні кілька хвилин під час роботи (AUTO_GIT_COMMIT), щоб нічого не
+# губилось, навіть якщо GitHub перерве джобу достроково.
+
 on:
-  # schedule:
-  #   - cron: '*/5 * * * *'
+  schedule:
+    - cron: '0 */5 * * *'   # 00:00, 05:00, 10:00, 15:00, 20:00 UTC
   workflow_dispatch:
 
-# Не даём двум прогонам работать параллельно и толкаться за git push —
-# если предыдущий ещё не закончил, новый просто встаёт в очередь.
+# Не даємо двом вікнам працювати паралельно й штовхатись за git push.
 concurrency:
-  group: monitor-parser
+  group: monitor-parser-247
   cancel-in-progress: false
 
 jobs:
@@ -21,7 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    timeout-minutes: 4
+    # Трохи менше за жорсткий ліміт GitHub (360 хв), щоб раннер точно встиг
+    # сам завершити крок, а не був вбитий примусово посеред запису файлу.
+    timeout-minutes: 350
 
     steps:
       - uses: actions/checkout@v4
@@ -34,21 +39,30 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run parser (одноразовый догоняющий проход)
+      - name: Configure git identity (для автокомітів усередині прогону)
+        run: |
+          git config --global user.name 'monitor-bot'
+          git config --global user.email 'actions@users.noreply.github.com'
+
+      - name: Run parser (постійний режим, ~5 годин на прогін)
         env:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
+          SESSION_STRING: ${{ secrets.SESSION_STRING }}
           SOURCE_CHANNELS: ${{ secrets.SOURCE_CHANNELS }}
           ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FOREVER: '1'
+          FOREVER_MAX_MINUTES: '295'   # трохи менше за timeout-minutes джоби
+          AUTO_GIT_COMMIT: '1'         # коміт зсередини процесу кожні COMMIT_INTERVAL_SEC
+          COMMIT_INTERVAL_SEC: '300'   # раз на 5 хвилин під час 5-годинного вікна
         run: python parser.py
 
-      - name: Commit and push targets.json / parser_state.json
+      - name: Final commit (страховка, якщо останній автокоміт не встиг)
+        if: always()
         run: |
-          git config --global user.name 'monitor-bot'
-          git config --global user.email 'actions@users.noreply.github.com'
-          git add targets.json parser_state.json
-          git diff --cached --quiet && echo "Нет изменений" || git commit -m "Update targets [skip ci]"
+          git add targets.json parser_state.json messages_log.jsonl
+          git diff --cached --quiet && echo "Немає змін" || git commit -m "Update targets/messages [skip ci]"
           git pull --rebase --autostash
           git push
