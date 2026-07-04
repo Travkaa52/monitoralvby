@@ -20,9 +20,26 @@
     tg.ready();
     tg.expand();
     try {
+      // Розтягуємо на весь екран, де це підтримується (Bot API 8.0+)
+      if (typeof tg.requestFullscreen === 'function') tg.requestFullscreen();
+      if (typeof tg.disableVerticalSwipes === 'function') tg.disableVerticalSwipes();
+
       document.documentElement.style.setProperty('--tg-bg-color', tg.themeParams.bg_color || '#060705');
       document.documentElement.style.setProperty('--tg-text-color', tg.themeParams.text_color || '#00ff41');
+      document.documentElement.style.setProperty('--tg-hint-color', tg.themeParams.hint_color || '#4d9c62');
+      document.documentElement.style.setProperty('--tg-link-color', tg.themeParams.link_color || '#00ff41');
+      document.documentElement.style.setProperty('--tg-button-color', tg.themeParams.button_color || '#00ff41');
+      document.documentElement.style.setProperty('--tg-safe-top', (tg.safeAreaInset?.top || 0) + 'px');
+      document.documentElement.style.setProperty('--tg-safe-bottom', (tg.safeAreaInset?.bottom || 0) + 'px');
+
       if (tg.setHeaderColor) tg.setHeaderColor('secondary_bg_color');
+      if (tg.setBackgroundColor) tg.setBackgroundColor(tg.themeParams.bg_color || '#060705');
+
+      // Тема Telegram могла змінитись (день/ніч) уже під час сесії
+      tg.onEvent('themeChanged', function () {
+        document.documentElement.style.setProperty('--tg-bg-color', tg.themeParams.bg_color || '#060705');
+        document.documentElement.style.setProperty('--tg-text-color', tg.themeParams.text_color || '#00ff41');
+      });
     } catch (e) {
       console.warn('[TelegramWebApp] theme init error:', e);
     }
@@ -65,8 +82,12 @@ setInterval(async () => {
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.js"></script>
 
+  <!-- Кластеризація міток -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
   <style>
-<style>
 :root {
   --panel-bg: rgba(2, 6, 4, 0.98);
   --panel-text: #00ff41;           /* Phosphor Green */
@@ -205,6 +226,52 @@ html, body {
 @media (max-width:480px) {
   #statusBar { font-size: 10px; width: 90%; text-align: center; }
 }
+
+/* ===== Пошук / фільтри ===== */
+.filter-switcher { position:absolute; z-index:1100; right:15px; top:70px; }
+.filter-fab {
+  width:42px; height:42px; border-radius:0; border:1px solid var(--card-border);
+  background: rgba(0,20,10,0.85); color: var(--panel-text); font-size:18px;
+  backdrop-filter: blur(5px); cursor:pointer;
+}
+.filter-fab:hover { background: var(--panel-text); color:#000; }
+.filter-panel {
+  display:none; position:absolute; top:48px; right:0; width:250px;
+  background: var(--card-bg); border:1px solid var(--card-border);
+  padding:12px; font-family: monospace; color: var(--panel-text);
+  box-shadow: 0 0 20px rgba(0,255,65,0.15);
+}
+.filter-switcher.open .filter-panel { display:block; }
+.filter-title { font-size:11px; letter-spacing:2px; text-transform:uppercase; opacity:0.8; margin-bottom:8px; }
+.filter-search {
+  width:100%; box-sizing:border-box; background:#000; border:1px solid var(--card-border);
+  color: var(--panel-text); padding:6px 8px; font-family: monospace; font-size:12px; margin-bottom:8px;
+}
+.filter-actions { display:flex; gap:8px; margin-bottom:10px; }
+.filter-actions button {
+  flex:1; background: rgba(0,255,65,0.08); border:1px solid var(--card-border);
+  color: var(--panel-text); padding:5px 0; font-size:10px; text-transform:uppercase; cursor:pointer;
+}
+.filter-actions button:active { background: var(--card-active); }
+.filter-types { display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto; }
+.filter-type-row { display:flex; align-items:center; gap:8px; font-size:11px; cursor:pointer; user-select:none; }
+.filter-type-row .dot { width:9px; height:9px; flex-shrink:0; border-radius:50%; box-shadow:0 0 5px currentColor; }
+.filter-type-row.disabled { opacity:0.35; }
+.filter-type-row .count { margin-left:auto; opacity:0.6; }
+
+/* ===== Кластери ===== */
+.cluster-wrap { background: transparent !important; border: none !important; }
+.cluster-badge {
+  width:34px; height:34px; border-radius:50%;
+  background: rgba(0, 20, 10, 0.92); border: 2px solid var(--panel-text);
+  color: var(--panel-text); display:flex; align-items:center; justify-content:center;
+  font: 700 12px monospace; box-shadow: 0 0 12px rgba(0,255,65,0.35);
+}
+
+/* ===== Safe-area (Telegram Mini App) ===== */
+#recenterBtn { bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
+#basemapSwitcher, .filter-switcher { top: calc(70px + env(safe-area-inset-top, 0px)); }
+#statusBar { top: calc(15px + env(safe-area-inset-top, 0px)); }
   </style>
 </head>
 <body>
@@ -224,6 +291,19 @@ html, body {
 <div id="newTargetToast"></div>
 
 <div id="basemapSwitcher" class="basemap-switcher"></div>
+
+<div id="filterSwitcher" class="filter-switcher">
+  <button type="button" class="filter-fab" id="filterFab" title="Пошук і фільтри">🔎</button>
+  <div class="filter-panel" id="filterPanel">
+    <div class="filter-title">Пошук і фільтри</div>
+    <input type="text" id="filterSearch" class="filter-search" placeholder="Пошук за назвою населеного пункту…" autocomplete="off">
+    <div class="filter-actions">
+      <button type="button" id="filterAllBtn">Всі</button>
+      <button type="button" id="filterNoneBtn">Жодного</button>
+    </div>
+    <div class="filter-types" id="filterTypes"></div>
+  </div>
+</div>
 
 <script>
 /* ===================== КОНФІГ ===================== */
@@ -252,13 +332,12 @@ const resolveIconUrl = (p) => {
 /* ===== Утиліти ===== */
 const pad2 = n => String(n).padStart(2, '0');
 
-/* ===== Іконки ===== */
+/* ===== Іконки (канонічний набір — 1-в-1 з парсером/AI-класифікатором) ===== */
 let ICON_PATHS = {
-  shahed: 'shahed.png', shaheds: 'shaheds.png', gerbera: 'gerbera.PNG',
-  orlan: 'orlan.png', lancet: 'lancet.png', zala: 'zala.png',
-  supercam: 'supercam.png', molniya: 'molniya.png',
-  rocket: 'rocket.png', kab: 'kab.png', explosion: 'Explosion.png',
-  rszo: 'rszo.png', balistika: 'balistika.png'
+  recon: 'recon.png', drone: 'drone.png', fpw: 'fpw.png',
+  lancet: 'lancet.png', molniya: 'molniya.png', kab: 'kab.png',
+  missile: 'missile.png', mrls: 'mrls.png', aircraft: 'aircraft.png',
+  unknown: 'unknown.png'
 };
 
 async function loadIconsFromAdmin() {
@@ -286,25 +365,30 @@ async function loadIconsFromAdmin() {
   }
 }
 
-/* ===== Типи цілей ===== */
+/* ===== Типи цілей (канонічні, відповідають types.json / ai_classifier.py) ===== */
 const TYPES = [
-  ['shahed',28,45], ['gerbera',50,45], ['orlan',36,45], ['molniya',36,45], ['lancet',36,45],
-  ['kab',30,180], ['rocket',30,45], ['невідомий',36,0],
-  ['explosion',60,0], ['rszo',80,45], ['balistika',80,45]
+  ['drone',28,45], ['fpw',26,45], ['recon',34,45], ['molniya',34,45], ['lancet',34,45],
+  ['kab',30,180], ['missile',32,45], ['mrls',60,45], ['aircraft',36,45], ['unknown',32,0]
 ];
 const LABELS = {
-  shahed:'Шахед', orlan:'Розвід. БпЛА', molniya:'Молнія', lancet:'Ланцет',
-  kab:'КАБ', rocket:'Ракета', 'невідомий':'Невідомий', gerbera:'Гербера',
-  explosion:'Вибух / ураження', rszo:'РСЗО', balistika:'Балістика'
+  drone:'Шахед', recon:'Розвід. БпЛА', molniya:'Молнія', lancet:'Ланцет',
+  kab:'КАБ', missile:'Ракета', mrls:'РСЗО / Артилерія', aircraft:'Літак',
+  fpw:'FPV дрон', unknown:'Невідомо'
 };
 const SHORT = {
-  shahed:'Шахедів:', orlan:'Розвід.:', molniya:'Молній:', lancet:'Ланцетів:',
-  kab:'КАБів:', rocket:'Ракет:', 'невідомий':'Невід.:', gerbera:'Гербер:',
-  explosion:'Вибухів:', rszo:'РСЗО:', balistika:'Баліст.:'
+  drone:'Шахедів:', recon:'Розвід.:', molniya:'Молній:', lancet:'Ланцетів:',
+  kab:'КАБів:', missile:'Ракет:', mrls:'РСЗО:', aircraft:'Літаків:',
+  fpw:'FPV:', unknown:'Невід.:'
+};
+const TYPE_COLORS = {
+  drone:'#00ff41', fpw:'#ff9d00', recon:'#39c6ff', molniya:'#ffe600',
+  lancet:'#ff3333', kab:'#ff6a00', missile:'#ff0033', mrls:'#c400ff',
+  aircraft:'#8fffb0', unknown:'#888888'
 };
 
 /* ===== Глобальні змінні ===== */
-let map, drones = [], markersGroup = null, targetsById = {};
+let map, drones = [], markersGroup = null, iconCluster = null, linesGroup = null, targetsById = {};
+const filterState = { types: new Set(Object.keys({recon:1,drone:1,fpw:1,lancet:1,molniya:1,kab:1,missile:1,mrls:1,aircraft:1,unknown:1})), search: '' };
 let currentBaseMeta = { name: 'Google Рельєф', isDark: false };
 let currentBaseLayer = null, currentBaseIdx = 0;
 window.allTargets = [];
@@ -318,6 +402,7 @@ function showNewTargetToast(count, typeSummary) {
   if (!el) return;
   el.textContent = `+${count} ${count === 1 ? 'нова ціль' : (count < 5 ? 'нових цілі' : 'нових цілей')}${typeSummary ? ' • ' + typeSummary : ''} ↗`;
   el.classList.add('show');
+  hapticNotify('warning');
   if (_toastTimer) clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => { el.classList.remove('show'); }, 4500);
 }
@@ -346,6 +431,22 @@ const BASE_LAYERS = [
 ];
 
 const canvasRenderer = L.canvas({ padding: 0.5 });
+
+/* ===== Плавний рух маркера між старою і новою точкою ===== */
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+function animateMarkerMove(marker, from, to, duration = 900) {
+  if (!marker || !from || !to) return;
+  const start = performance.now();
+  const dLat = to.lat - from.lat, dLng = to.lng - from.lng;
+  if (Math.abs(dLat) < 1e-7 && Math.abs(dLng) < 1e-7) return;
+  function step(now) {
+    const p = Math.min(1, (now - start) / duration);
+    const e = easeOutCubic(p);
+    marker.setLatLng([from.lat + dLat * e, from.lng + dLng * e]);
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
 
 /* ===== Анімація (rAF) ===== */
 const anims = new Set();
@@ -387,7 +488,7 @@ function refreshIconsByZoom() {
   const z = map.getZoom();
   drones.forEach(d => {
     if (!d) return;
-    d.marker.setIcon(icon(d.iconT || d.type || 'shahed', d.baseSize || 36));
+    d.marker.setIcon(icon(d.iconT || d.type || 'drone', d.baseSize || 36));
     if (d.ring) d.ring.setRadius((d.baseSize || 36) * scaleForZoom(z) * 0.32);
   });
 }
@@ -417,7 +518,7 @@ function getEndpoint(lat, lon, bearingDeg, distKm = 15) {
 
 /* ===== РСЗО: підпис + сектор ===== */
 function ensureRszoLabel(d) {
-  if (!d || d.type !== 'rszo') return;
+  if (!d || d.type !== 'mrls') return;
   const brg = (typeof d.lastBearing === 'number') ? d.lastBearing : 0;
   const side = (brg >= 0 && brg <= 180) ? 'left' : 'right';
   const offset = (side === 'left') ? L.point(-26, 0) : L.point(26, 0);
@@ -501,7 +602,7 @@ function updateMapData(data) {
     const id = item.id || `${item.type || 't'}:${lat},${lon}`;
     seen.add(id);
 
-    const t = item.type || "shahed";
+    const t = item.type || "drone";
     const meta = TYPES.find(x => x[0] === t);
     const size = meta?.[1] || 36, rotOffset = meta?.[2] ?? 45;
     const icn = icon(t, size);
@@ -528,7 +629,7 @@ function updateMapData(data) {
       } else {
         marker = L.marker([lat, lon], { icon: icn, pane: 'targetsPane', rotationOrigin: 'center center' });
       }
-      if (markersGroup) markersGroup.addLayer(marker); else marker.addTo(map);
+      if (iconCluster) iconCluster.addLayer(marker); else marker.addTo(map);
 
       const shadow = L.polyline([], { color: '#000', weight: 4, opacity: 0.25, interactive: false, lineCap: 'round', lineJoin: 'round' }).addTo(markersGroup || map);
       const line = L.polyline([], { color: '#ff2a2a', weight: 1.4, opacity: 0.9, interactive: false, lineCap: 'butt', lineJoin: 'round' }).addTo(markersGroup || map);
@@ -538,18 +639,20 @@ function updateMapData(data) {
       const desc = item.description || '';
       const popupHtml = desc ? `<b>${label}</b><div style="margin-top:4px;font-weight:400;opacity:0.85">${desc}</div>` : `<b>${label}</b>`;
       marker.bindPopup(popupHtml, { closeButton: false, className: 'target-popup', offset: [0, -8] });
+      marker.on('click', () => hapticImpact('light'));
 
       d = { id, type: t, iconT: t, baseSize: size, rotOffset, marker, shadow, line, lastBearing: brg, courseLine: null, points: [L.latLng(lat, lon)], description: desc };
       targetsById[id] = d;
       drones.push(d);
     } else {
-      // Оновлення
+      // Оновлення — плавно, а не стрибком
       const newPt = L.latLng(lat, lon);
-      d.marker.setLatLng(newPt);
+      const fromPt = d.marker.getLatLng();
+      animateMarkerMove(d.marker, fromPt, newPt, 900);
       d.points.push(newPt);
       if (d.line) d.line.setLatLngs(d.points);
       if (d.shadow) d.shadow.setLatLngs(d.points);
-      if (brg !== null && d.type !== 'rszo') d.marker.setRotationAngle?.(brg - d.rotOffset);
+      if (brg !== null && d.type !== 'mrls') d.marker.setRotationAngle?.(brg - d.rotOffset);
       const typeChanged = d.type !== t;
       if (typeChanged) { d.marker.setIcon(icn); d.type = t; d.iconT = t; d.baseSize = size; d.rotOffset = rotOffset; }
       // Оновлюємо опис і попап
@@ -563,7 +666,7 @@ function updateMapData(data) {
     }
 
     // РСЗО: сектор (лінії) — якщо є bearing
-    if (d.type === 'rszo' && brg !== null) {
+    if (d.type === 'mrls' && brg !== null) {
       d.sectorCfg = { baseRadius: 14000, baseZoom: 10, halfA: 18, bearing: brg };
       drawSectorZone(d);
       ensureRszoLabel(d);
@@ -585,7 +688,8 @@ function updateMapData(data) {
   Object.keys(targetsById).forEach(id => {
     if (seen.has(id)) return;
     const d = targetsById[id];
-    [d?.marker, d?.shadow, d?.line, d?.courseLine, d?.zoneLayer, d?.rszoLabel].forEach(l => { if (l) { map.removeLayer(l); if (markersGroup) markersGroup.removeLayer(l); } });
+    if (d?.marker) { if (iconCluster) iconCluster.removeLayer(d.marker); map.removeLayer(d.marker); }
+    [d?.shadow, d?.line, d?.courseLine, d?.zoneLayer, d?.rszoLabel].forEach(l => { if (l) { map.removeLayer(l); if (linesGroup) linesGroup.removeLayer(l); } });
     delete targetsById[id];
     drones = drones.filter(x => x && x.id !== id);
   });
@@ -599,7 +703,7 @@ function updateMapData(data) {
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
       const id = item.id || `${item.type || 't'}:${lat},${lon}`;
       if (!_knownTargetIds.has(id) && !bounds.contains([lat, lon])) {
-        newOutside.push(item.type || 'shahed');
+        newOutside.push(item.type || 'drone');
       }
     }
     if (newOutside.length > 0) {
@@ -612,6 +716,8 @@ function updateMapData(data) {
   // Оновлюємо відомі ID
   _knownTargetIds = new Set(seen);
 
+  buildFilterPanel();
+  applyFilters();
   updateStatus();
 }
 
@@ -633,7 +739,26 @@ function initApp() {
   map = L.map('map', { center: [49.9, 36.3], zoom: 10, preferCanvas: true, zoomControl: false });
   map.createPane('targetsPane');
   map.getPane('targetsPane').style.zIndex = 650;
-  markersGroup = L.featureGroup({ pane: 'targetsPane' }).addTo(map);
+
+  // Лінії/сектори/тіні — окремий незкластеризований шар (кластеризуються лише іконки цілей)
+  linesGroup = L.layerGroup({ pane: 'targetsPane' }).addTo(map);
+
+  // Кластеризація іконок цілей: розкластеризовується вже на близькому зумі,
+  // щоб не ховати реальні цілі одна за одною
+  if (typeof L.markerClusterGroup === 'function') {
+    iconCluster = L.markerClusterGroup({
+      maxClusterRadius: 42,
+      disableClusteringAtZoom: 12,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      iconCreateFunction: function (cluster) {
+        const n = cluster.getChildCount();
+        return L.divIcon({ html: `<div class="cluster-badge">${n}</div>`, className: 'cluster-wrap', iconSize: [34, 34] });
+      }
+    });
+    map.addLayer(iconCluster);
+  }
+  markersGroup = linesGroup; // зворотна сумісність з рештою коду, що посилається на markersGroup
 
   // Початкове завантаження цілей
   setTimeout(async () => {
@@ -651,19 +776,75 @@ function initApp() {
   requestAnimationFrame(tick);
   requestAnimationFrame(pulseSectors);
 
+  // Фолбек-іконка, якщо файл конкретного типу цілі не завантажився
+  document.getElementById('map').addEventListener('error', (e) => {
+    const img = e.target;
+    if (img?.tagName === 'IMG' && !img.dataset.fallbackApplied) {
+      img.dataset.fallbackApplied = '1';
+      img.src = resolveIconUrl(ICON_PATHS.unknown || 'unknown.png');
+    }
+  }, true);
+
   buildBasemapSwitcher();
 
   // Кнопка підкладок
   const sw = document.getElementById('basemapSwitcher');
   if (sw) {
     const bmFab = sw.querySelector('.bm-fab');
-    if (bmFab) bmFab.addEventListener('click', e => { e.stopPropagation(); sw.classList.toggle('open'); });
+    if (bmFab) bmFab.addEventListener('click', e => { e.stopPropagation(); hapticImpact('light'); sw.classList.toggle('open'); });
     document.addEventListener('click', e => { if (!sw.contains(e.target)) sw.classList.remove('open'); });
   }
 
+  // Пошук і фільтри
+  const filterSw = document.getElementById('filterSwitcher');
+  const filterFab = document.getElementById('filterFab');
+  const filterSearch = document.getElementById('filterSearch');
+  if (filterSw && filterFab) {
+    filterFab.addEventListener('click', e => {
+      e.stopPropagation();
+      hapticImpact('light');
+      filterSw.classList.toggle('open');
+      syncBackButton();
+    });
+    document.addEventListener('click', e => { if (!filterSw.contains(e.target)) { filterSw.classList.remove('open'); syncBackButton(); } });
+  }
+  if (filterSearch) {
+    filterSearch.addEventListener('input', e => { filterState.search = e.target.value; applyFilters(); });
+  }
+  document.getElementById('filterAllBtn')?.addEventListener('click', () => {
+    TYPES.forEach(([t]) => filterState.types.add(t));
+    hapticImpact('light'); buildFilterPanel(); applyFilters();
+  });
+  document.getElementById('filterNoneBtn')?.addEventListener('click', () => {
+    filterState.types.clear();
+    hapticImpact('light'); buildFilterPanel(); applyFilters();
+  });
+
+  // Telegram BackButton — закриває відкриті панелі замість виходу з міні-аппи
+  function syncBackButton() {
+    const tg = window.tgWebApp;
+    if (!tg?.BackButton) return;
+    const anyOpen = filterSw?.classList.contains('open') || sw?.classList.contains('open') ||
+      document.getElementById('changelogOverlay')?.classList.contains('open');
+    if (anyOpen) {
+      tg.BackButton.show();
+      tg.BackButton.offClick(closeAllPanels);
+      tg.BackButton.onClick(closeAllPanels);
+    } else {
+      tg.BackButton.hide();
+    }
+  }
+  function closeAllPanels() {
+    filterSw?.classList.remove('open');
+    sw?.classList.remove('open');
+    document.getElementById('changelogOverlay')?.classList.remove('open');
+    syncBackButton();
+  }
+  window.syncMiniAppBackButton = syncBackButton;
+
   // Рецентр
   const recenterBtn = document.getElementById('recenterBtn');
-  if (recenterBtn) recenterBtn.onclick = () => recenterTargets();
+  if (recenterBtn) recenterBtn.onclick = () => { hapticImpact('medium'); recenterTargets(); };
 
   // Натискання на статус-бар → показати всі цілі
   const statusBar = document.getElementById('statusBar');
@@ -677,6 +858,61 @@ function initApp() {
   document.body.classList.toggle('dark-map', BASE_LAYERS[0].isDark);
 
   map.on('zoomend', () => { refreshIconsByZoom(); redrawAllSectors(); });
+}
+
+/* ===== Пошук і фільтри по типу цілі ===== */
+function buildFilterPanel() {
+  const container = document.getElementById('filterTypes');
+  if (!container) return;
+  container.innerHTML = '';
+  const counts = {};
+  drones.forEach(d => { if (d) counts[d.type] = (counts[d.type] || 0) + 1; });
+
+  TYPES.forEach(([t]) => {
+    const row = document.createElement('label');
+    row.className = 'filter-type-row' + (filterState.types.has(t) ? '' : ' disabled');
+    row.dataset.type = t;
+    const color = TYPE_COLORS[t] || '#0f4';
+    row.innerHTML = `<span class="dot" style="background:${color};color:${color}"></span>` +
+      `<span>${LABELS[t] || t}</span><span class="count">${counts[t] || 0}</span>`;
+    row.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (filterState.types.has(t)) filterState.types.delete(t); else filterState.types.add(t);
+      row.classList.toggle('disabled', !filterState.types.has(t));
+      hapticImpact('light');
+      applyFilters();
+    });
+    container.appendChild(row);
+  });
+}
+
+function applyFilters() {
+  const q = (filterState.search || '').trim().toLowerCase();
+  drones.forEach(d => {
+    if (!d) return;
+    const typeOk = filterState.types.has(d.type);
+    const label = (d.marker?.getPopup()?.getContent() || '').toLowerCase();
+    const searchOk = !q || label.includes(q);
+    const visible = typeOk && searchOk;
+    const wasVisible = d._visible !== false;
+    if (visible === wasVisible) return;
+    d._visible = visible;
+    if (visible) {
+      if (iconCluster) iconCluster.addLayer(d.marker); else d.marker.addTo(map);
+      [d.shadow, d.line, d.courseLine, d.zoneLayer, d.rszoLabel].forEach(l => { if (l) map.addLayer(l); });
+    } else {
+      if (iconCluster) iconCluster.removeLayer(d.marker); else map.removeLayer(d.marker);
+      [d.shadow, d.line, d.courseLine, d.zoneLayer, d.rszoLabel].forEach(l => { if (l) map.removeLayer(l); });
+    }
+  });
+}
+
+/* ===== Haptic feedback (Telegram Mini App) ===== */
+function hapticImpact(style) {
+  try { window.tgWebApp?.HapticFeedback?.impactOccurred(style || 'medium'); } catch (e) {}
+}
+function hapticNotify(type) {
+  try { window.tgWebApp?.HapticFeedback?.notificationOccurred(type || 'success'); } catch (e) {}
 }
 
 /* ===== Док підкладок ===== */
@@ -973,10 +1209,11 @@ async function checkStreamStatus() {
 (function(){
   const btn=document.getElementById('changelogBtn'),ov=document.getElementById('changelogOverlay'),cl=document.getElementById('clClose');
   if(!btn||!ov)return;
-  btn.addEventListener('click',()=>ov.classList.add('open'));
-  cl.addEventListener('click',()=>ov.classList.remove('open'));
-  ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open')});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ov.classList.contains('open'))ov.classList.remove('open')});
+  const sync = () => { window.syncMiniAppBackButton?.(); };
+  btn.addEventListener('click',()=>{ov.classList.add('open'); hapticImpact?.('light'); sync();});
+  cl.addEventListener('click',()=>{ov.classList.remove('open'); sync();});
+  ov.addEventListener('click',e=>{if(e.target===ov){ov.classList.remove('open'); sync();}});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ov.classList.contains('open')){ov.classList.remove('open'); sync();}});
 })();
 </script>
 
