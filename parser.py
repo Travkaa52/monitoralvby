@@ -264,9 +264,29 @@ async def run_once():
     targets = prune_expired(load_targets(), now)
     state = load_state()
 
-    client = TelegramClient('parser_session', API_ID, API_HASH)
-    await client.start(bot_token=BOT_TOKEN)
-    log.info("🔗 Підключено до Telegram")
+    if SESSION_STRING:
+        await _run_catchup(targets, state, now, now_utc, max_age)
+    else:
+        await _run_live_listen(targets, now, now_utc, max_age)
+
+    save_targets(targets)
+    save_state(state)
+
+    log.info(
+        f"✅ Прохід завершено. Повідомлень: {_stats['messages_seen']}, "
+        f"нових цілей: {_stats['targets_created']}, AI-фолбеків: {_stats['ai_fallbacks']}, "
+        f"активних цілей всього: {len(targets)}"
+    )
+
+
+async def _run_catchup(targets: list, state: dict, now: datetime, now_utc: datetime, max_age: timedelta):
+    """Режим для звичайного (не бот) акаунта через StringSession: наздоганяючий
+    опит історії каналів через min_id. Тільки user-акаунти мають доступ до
+    GetHistory — Telegram блокує цей метод для ботів на своєму боці, тому цей
+    режим доступний лише якщо задано SESSION_STRING."""
+    client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+    await client.start()
+    log.info("🔗 Підключено до Telegram (user-сесія, режим 'наздоганяючий опит')")
 
     for channel in SOURCE_CHANNELS:
         last_id = int(state.get(channel, 0))
@@ -300,14 +320,41 @@ async def run_once():
 
     await client.disconnect()
 
-    save_targets(targets)
-    save_state(state)
 
-    log.info(
-        f"✅ Прохід завершено. Повідомлень: {_stats['messages_seen']}, "
-        f"нових цілей: {_stats['targets_created']}, AI-фолбеків: {_stats['ai_fallbacks']}, "
-        f"активних цілей всього: {len(targets)}"
-    )
+async def _run_live_listen(targets: list, now: datetime, now_utc: datetime, max_age: timedelta):
+    """Режим для бот-акаунта (BOT_TOKEN): Telegram забороняє ботам GetHistory
+    (messages.getHistory), тож єдиний робочий спосіб — слухати НОВІ повідомлення
+    "живцем" протягом обмеженого вікна й вийти. Через це можливий короткий
+    розрив між прогонами (див. README) — щоб його прибрати повністю, потрібен
+    SESSION_STRING (звичайний акаунт)."""
+    if not BOT_TOKEN:
+        raise RuntimeError("Задайте або SESSION_STRING (user-акаунт), або BOT_TOKEN (бот) — обидва відсутні")
+
+    client = TelegramClient('parser_session', API_ID, API_HASH)
+    await client.start(bot_token=BOT_TOKEN)
+    log.info(f"🔗 Підключено до Telegram (бот, режим 'живе прослуховування' {LISTEN_SECONDS}с)")
+
+    resolved = {}
+    for channel in SOURCE_CHANNELS:
+        try:
+            resolved[channel] = await client.get_entity(channel)
+        except Exception as e:
+            log.error(f"❌ Канал {channel} недоступний: {e}")
+            notify_admins(f"канал {channel} недоступний: {e}")
+
+    from telethon import events
+
+    @client.on(events.NewMessage(chats=list(resolved.values())))
+    async def handler(event):
+        text = event.raw_text
+        if not text:
+            return
+        source_chat = getattr(event.chat, 'username', None) or str(event.chat_id)
+        process_message(text, source_chat, event.id, datetime.now(), targets)
+        save_targets(targets)  # інкрементальний збіг на випадок падіння посеред вікна
+
+    await asyncio.sleep(LISTEN_SECONDS)
+    await client.disconnect()
 
 
 def main():
