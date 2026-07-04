@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Що зробити?'
+        description: 'Что сделать?'
         required: true
         default: 'add'
         type: choice
@@ -11,41 +11,70 @@ on:
           - add
           - clear
       target_type:
-        description: 'Тип (shahed, kab, rszo...)'
-        default: 'shahed'
+        description: 'Тип (drone, kab, missile, recon, lancet...)'
+        default: 'drone'
+      location_label:
+        description: 'Название точки на карте'
+        default: 'Ручная метка'
       lat:
         description: 'Широта'
       lon:
-        description: 'Довгота'
+        description: 'Долгота'
       bearing:
-        description: 'Курс (0-360)'
+        description: 'Курс (0-360), необязательно'
         default: '0'
+      ttl_minutes:
+        description: 'Через сколько минут метка исчезнет'
+        default: '40'
 
 jobs:
   update-map:
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
-      - uses: actions/checkout@v3
-      - name: Manual Update
+      - uses: actions/checkout@v4
+
+      - name: Manual update
         run: |
-          # Скрипт на Bash, який оновлює JSON напряму без Python
+          set -e
+          if [ ! -s targets.json ]; then echo '[]' > targets.json; fi
+
           if [ "${{ github.event.inputs.action }}" == "clear" ]; then
-            echo '{"items": []}' > targets.json
+            echo '[]' > targets.json
           else
-            # Додавання нового об'єкта в масив JSON
-            jq '.items += [{
-              "id": "'$(date +%s)'",
-              "type": "${{ github.event.inputs.target_type }}",
-              "lat": ${{ github.event.inputs.lat }},
-              "lon": ${{ github.event.inputs.lon }},
-              "bearing": ${{ github.event.inputs.bearing }}
-            }]' targets.json > temp.json && mv temp.json targets.json
+            NOW_ISO=$(date -u +"%Y-%m-%dT%H:%M:%S")
+            EXPIRE_ISO=$(date -u -d "+${{ github.event.inputs.ttl_minutes }} minutes" +"%Y-%m-%dT%H:%M:%S")
+            NOW_HM=$(date -u +"%H:%M")
+            jq --arg id "manual_$(date +%s)" \
+               --arg type "${{ github.event.inputs.target_type }}" \
+               --argjson lat "${{ github.event.inputs.lat }}" \
+               --argjson lon "${{ github.event.inputs.lon }}" \
+               --argjson bearing "${{ github.event.inputs.bearing }}" \
+               --arg label "${{ github.event.inputs.location_label }}" \
+               --arg time "$NOW_HM" \
+               --arg created "$NOW_ISO" \
+               --arg expire "$EXPIRE_ISO" \
+               '. += [{
+                  "id": $id,
+                  "type": $type,
+                  "lat": $lat,
+                  "lng": $lon,
+                  "lon": $lon,
+                  "label": $label,
+                  "source": "admin",
+                  "direction": null,
+                  "bearing": $bearing,
+                  "time": $time,
+                  "created_at": $created,
+                  "expire_at": $expire
+               }]' targets.json > targets.tmp.json
+            mv targets.tmp.json targets.json
           fi
+
       - name: Push
         run: |
-          git config --global user.name "Admin"
-          git config --global user.email "admin@sky.kh"
+          git config --global user.name "monitor-admin"
+          git config --global user.email "actions@users.noreply.github.com"
           git add targets.json
-          git commit -m "Admin Update" || exit 0
+          git commit -m "Admin update" || exit 0
           git push
