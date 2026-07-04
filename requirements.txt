@@ -1,0 +1,4 @@
+aiohttp
+telethon
+requests
+aiogram>=3.4

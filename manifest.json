@@ -1,0 +1,15 @@
+{
+  "name": "OPERATOR HUD",
+  "short_name": "HUD",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#060705",
+  "theme_color": "#060705",
+  "icons": [
+    {
+      "src": "img/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
