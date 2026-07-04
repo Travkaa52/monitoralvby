@@ -1,0 +1,51 @@
+name: ADMIN_CONTROL_PANEL
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Що зробити?'
+        required: true
+        default: 'add'
+        type: choice
+        options:
+          - add
+          - clear
+      target_type:
+        description: 'Тип (shahed, kab, rszo...)'
+        default: 'shahed'
+      lat:
+        description: 'Широта'
+      lon:
+        description: 'Довгота'
+      bearing:
+        description: 'Курс (0-360)'
+        default: '0'
+
+jobs:
+  update-map:
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v3
+      - name: Manual Update
+        run: |
+          # Скрипт на Bash, який оновлює JSON напряму без Python
+          if [ "${{ github.event.inputs.action }}" == "clear" ]; then
+            echo '{"items": []}' > targets.json
+          else
+            # Додавання нового об'єкта в масив JSON
+            jq '.items += [{
+              "id": "'$(date +%s)'",
+              "type": "${{ github.event.inputs.target_type }}",
+              "lat": ${{ github.event.inputs.lat }},
+              "lon": ${{ github.event.inputs.lon }},
+              "bearing": ${{ github.event.inputs.bearing }}
+            }]' targets.json > temp.json && mv temp.json targets.json
+          fi
+      - name: Push
+        run: |
+          git config --global user.name "Admin"
+          git config --global user.email "admin@sky.kh"
+          git add targets.json
+          git commit -m "Admin Update" || exit 0
+          git push

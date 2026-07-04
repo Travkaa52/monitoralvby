@@ -1,0 +1,44 @@
+name: Monitor Parser
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run-parser:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Run parser
+      env:
+        API_ID: ${{ secrets.API_ID }}
+        API_HASH: ${{ secrets.API_HASH }}
+        SOURCE_CHANNELS: ${{ secrets.SOURCE_CHANNELS }}
+        ADMIN_IDS: ${{ secrets.ADMIN_IDS }}
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        pip install -r requirements.txt
+        python parser.py &
+        sleep 280
+    
+    - name: Commit and push
+      run: |
+        git config --global user.name 'Bot'
+        git config --global user.email 'bot@github.com'
+        git add targets.json bot.log last_message_state.json || true
+        git commit -m "Update targets from monitor" || echo "No changes"
+        git push || true
