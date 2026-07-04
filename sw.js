@@ -3,10 +3,11 @@ const ASSETS = [
     './',
     './index.html',
     './app.js',
-    './manifest.json', // Обов'язково додаємо маніфест у кеш
-    'https://cdn.tailwindcss.com',
+    './manifest.json',
+    './channels.json',
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+    'https://cdn.jsdelivr.net/npm/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.js'
 ];
 
 // Встановлення: кешуємо ресурси та активуємо SW негайно

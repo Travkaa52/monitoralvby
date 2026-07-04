@@ -1,1221 +1,533 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-  <script>
-  document.documentElement.classList.add('viewer-no-auth');
-</script>
-
-  <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; img-src 'self' https: data: blob:;">
-  <title>Monitor Kharkiv — </title>
-
-  <script src="config.dev.js?v=20260206-15"></script>
-
-  <!-- Telegram Mini App SDK -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script>
-  (function initTelegramWebApp() {
-    var tg = window.Telegram && window.Telegram.WebApp;
-    if (!tg) return;
-    tg.ready();
-    tg.expand();
-    try {
-      // Розтягуємо на весь екран, де це підтримується (Bot API 8.0+)
-      if (typeof tg.requestFullscreen === 'function') tg.requestFullscreen();
-      if (typeof tg.disableVerticalSwipes === 'function') tg.disableVerticalSwipes();
-
-      document.documentElement.style.setProperty('--tg-bg-color', tg.themeParams.bg_color || '#060705');
-      document.documentElement.style.setProperty('--tg-text-color', tg.themeParams.text_color || '#00ff41');
-      document.documentElement.style.setProperty('--tg-hint-color', tg.themeParams.hint_color || '#4d9c62');
-      document.documentElement.style.setProperty('--tg-link-color', tg.themeParams.link_color || '#00ff41');
-      document.documentElement.style.setProperty('--tg-button-color', tg.themeParams.button_color || '#00ff41');
-      document.documentElement.style.setProperty('--tg-safe-top', (tg.safeAreaInset?.top || 0) + 'px');
-      document.documentElement.style.setProperty('--tg-safe-bottom', (tg.safeAreaInset?.bottom || 0) + 'px');
-
-      if (tg.setHeaderColor) tg.setHeaderColor('secondary_bg_color');
-      if (tg.setBackgroundColor) tg.setBackgroundColor(tg.themeParams.bg_color || '#060705');
-
-      // Тема Telegram могла змінитись (день/ніч) уже під час сесії
-      tg.onEvent('themeChanged', function () {
-        document.documentElement.style.setProperty('--tg-bg-color', tg.themeParams.bg_color || '#060705');
-        document.documentElement.style.setProperty('--tg-text-color', tg.themeParams.text_color || '#00ff41');
-      });
-    } catch (e) {
-      console.warn('[TelegramWebApp] theme init error:', e);
-    }
-    window.tgWebApp = tg;
-  })();
-  </script>
-
-  <script>
-/* ===== Polling: отримання цілей кожні 5с ===== */
-function ensureDebugEl(){
-  let el = document.getElementById('tgDebug');
-  if (!el && document.body) {
-    el = document.createElement('div');
-    el.id = 'tgDebug';
-    el.textContent = 'Загрузка...';
-    document.body.appendChild(el);
-  }
-  return el;
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#05080a" />
+<title>Монитор Тривог</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="img/LOGO.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+/* =====================================================
+   TOKENS
+   ===================================================== */
+:root{
+  --bg:#05080a;
+  --bg-raise:#0b1113;
+  --card:#10181a;
+  --card-border:#1c2b28;
+  --card-border-soft:#162220;
+  --green:#2fe17f;
+  --green-dim:#0f2c1c;
+  --red:#ff4747;
+  --red-dim:#3a1414;
+  --purple:#9b6bff;
+  --purple-dim:#241b3a;
+  --amber:#ffb020;
+  --amber-dim:#332508;
+  --text:#e8f4ee;
+  --text-dim:#7d9089;
+  --text-faint:#4c5c57;
+  --radius:16px;
+  --radius-sm:10px;
+  --font-display:'Rajdhani',sans-serif;
+  --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --font-mono:'Share Tech Mono',ui-monospace,monospace;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
 }
-
-setInterval(async () => {
-  try {
-    // Додаємо timestamp, щоб GitHub не кешував старі дані
-    const response = await fetch(`./targets.json?t=${Date.now()}`);
-    const data = await response.json();
-    if (typeof updateMapData === 'function' && map) {
-      updateMapData(data);
-    }
-  } catch (e) {
-    console.warn('[Viewer] fetch error:', e);
-  }
-}, 5000);
-</script>
-
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="favicon.png" />
-
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.js"></script>
-
-  <!-- Кластеризація міток -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
-  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-
-  <style>
-:root {
-  --panel-bg: rgba(2, 6, 4, 0.98);
-  --panel-text: #00ff41;           /* Phosphor Green */
-  --route-main: #00ff41;
-  --route-shadow: #000000;
-  --btn-primary: #003311;
-  --card-bg: rgba(0, 10, 5, 0.98);
-  --card-border: rgba(0, 255, 65, 0.5);
-  --card-hover: rgba(0, 255, 65, 0.2);
-  --card-active: rgba(0, 255, 65, 0.3);
-  --glow: drop-shadow(0 0 3px #00ff41);
-  --map-overlay-br: brightness(0.7) contrast(1.2) grayscale(0.5) hue-rotate(85deg);
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:var(--font-body);
+  overscroll-behavior:none;
+  -webkit-user-select:none; user-select:none;
 }
+::-webkit-scrollbar{display:none;}
+button{font-family:inherit; color:inherit; cursor:pointer;}
+input{font-family:inherit; color:var(--text);}
 
-html, body { 
-  margin:0; padding:0; width:100%; height:100%; overflow:hidden; 
-  font-family: "Courier New", Courier, monospace; 
-  background:#000500; color:var(--panel-text); 
-}
-
-#map { position:relative; width:100vw; height:100vh; background:#000500; }
-.leaflet-container { background:#000500 !important; }
-
-/* Tactical Scanline Grid */
-#map::before {
-  content:""; position:absolute; inset:0; pointer-events:none; z-index:8;
+/* background: faint grid + vignette, gives it a tactical console feel */
+body::before{
+  content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
   background-image:
-    linear-gradient(rgba(0, 255, 65, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 255, 65, 0.1) 1px, transparent 1px);
-  background-size: 30px 30px;
-  opacity: 0.4;
+    linear-gradient(rgba(47,225,127,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(47,225,127,0.035) 1px, transparent 1px);
+  background-size:28px 28px;
+  mask-image:radial-gradient(ellipse at 50% 0%, black 0%, transparent 70%);
 }
 
-#map::after {
-  content:""; position:absolute; inset:0; pointer-events:none; z-index:5;
-  background: 
-    repeating-linear-gradient(0deg, rgba(0,0,0,0.15), rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px),
-    radial-gradient(circle at 50% 50%, transparent 30%, rgba(0,10,0,0.7) 100%);
+#app{
+  position:relative; z-index:1;
+  max-width:520px; margin:0 auto;
+  min-height:100vh; min-height:100dvh;
+  display:flex; flex-direction:column;
+  padding-top:var(--safe-top);
 }
 
-/* HUD Status Bar */
-#statusBar {
-  position:absolute; top:15px; left:50%; transform:translateX(-50%);
-  padding:8px 24px; background: var(--panel-bg);
-  color: var(--panel-text); font: 700 12px monospace; letter-spacing: 2px;
-  border-radius: 0; 
-  border: 1px solid var(--card-border);
-  border-left: 4px solid var(--panel-text);
-  box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
-  z-index:1100; backdrop-filter:blur(10px);
-  text-transform: uppercase;
+/* =====================================================
+   HEADER
+   ===================================================== */
+.topbar{
+  display:flex; align-items:center; gap:10px;
+  padding:14px 16px 4px;
 }
-#statusBar::before { content: "[SYNC] "; color: var(--panel-text); font-size: 10px; text-shadow: none; }
+.topbar .logo{
+  width:36px; height:36px; border-radius:10px;
+  background:var(--green-dim); border:1px solid var(--card-border);
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; flex-shrink:0;
+}
+.topbar h1{
+  font-family:var(--font-display); font-weight:700; font-size:19px;
+  letter-spacing:0.5px; margin:0; text-transform:uppercase;
+}
+.topbar .status-dot{
+  margin-left:auto; display:flex; align-items:center; gap:6px;
+  font-family:var(--font-mono); font-size:11px; color:var(--green);
+}
+.topbar .status-dot i{
+  width:7px; height:7px; border-radius:50%; background:var(--green);
+  box-shadow:0 0 8px var(--green);
+  animation:pulse-dot 1.6s ease-in-out infinite;
+}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.35}}
 
-/* Alert Toasts */
-#newTargetToast {
-  position:fixed; top:70px; left:50%; transform:translateX(-50%) translateY(-120%);
-  padding:10px 20px; border-radius: 0;
-  background: #0a0000; color: #ff3333; font: 900 13px monospace;
-  border: 1px solid #ff3333;
-  box-shadow: 0 0 30px rgba(255, 0, 0, 0.2);
-  z-index:1200; opacity: 0; text-transform: uppercase;
+.page-header{
+  padding:16px 16px 10px;
 }
-#newTargetToast.show { transform:translateX(-50%) translateY(0); opacity:1; }
-
-/* Tactical Buttons */
-.recenter-btn, #donateBtn, #changelogBtn {
-  border-radius: 0 !important;
-  border: 1px solid var(--card-border) !important;
-  background: rgba(0, 20, 10, 0.8) !important;
-  color: var(--panel-text) !important;
-  box-shadow: none !important;
-  backdrop-filter: blur(5px);
-}
-.recenter-btn:hover, #donateBtn:hover, #changelogBtn:hover {
-  background: var(--panel-text) !important;
-  color: #000 !important;
+.page-header h2{
+  font-family:var(--font-display); font-weight:700; font-size:22px;
+  letter-spacing:1px; margin:0; text-transform:uppercase;
 }
 
-/* Labels & Tooltips */
-.rszo-tag {
-  background: #ff0000; color: #fff;
-  border: 1px solid #000; border-radius: 0;
-  font-weight: 900; letter-spacing: 1px;
+/* =====================================================
+   PAGES / NAV
+   ===================================================== */
+.pages{ flex:1; display:flex; flex-direction:column; min-height:0; position:relative; }
+.page{ display:none; flex-direction:column; flex:1; min-height:0; animation:fade-in .18s ease; }
+.page.active{ display:flex; }
+@keyframes fade-in{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)}}
+
+.bottom-nav{
+  display:flex; border-top:1px solid var(--card-border-soft);
+  background:rgba(8,12,13,0.92); backdrop-filter:blur(10px);
+  padding:8px 4px calc(8px + var(--safe-bottom));
+  position:sticky; bottom:0; z-index:20;
+}
+.nav-btn{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+  background:none; border:none; padding:4px 0; position:relative;
+  color:var(--text-faint); font-family:var(--font-display); font-size:10.5px;
+  font-weight:600; letter-spacing:.3px; text-transform:uppercase;
+}
+.nav-btn svg{ width:22px; height:22px; stroke:var(--text-faint); fill:none; stroke-width:1.8; }
+.nav-btn.active{ color:var(--green); }
+.nav-btn.active svg{ stroke:var(--green); filter:drop-shadow(0 0 4px rgba(47,225,127,.6)); }
+.nav-badge{
+  position:absolute; top:-2px; right:calc(50% - 20px);
+  background:var(--red); color:#fff; font-size:9px; font-weight:700;
+  min-width:15px; height:15px; border-radius:8px; display:flex;
+  align-items:center; justify-content:center; padding:0 4px;
+  font-family:var(--font-mono); box-shadow:0 0 6px rgba(255,71,71,.7);
 }
 
-.target-popup .leaflet-popup-content-wrapper {
-  background: #000; color: var(--panel-text);
-  border: 1px solid var(--panel-text);
-  border-radius: 0; box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
-  font-family: monospace;
+/* =====================================================
+   MAP PAGE
+   ===================================================== */
+.stats-row{ display:flex; gap:8px; padding:0 16px 12px; }
+.stat-cards{ flex:1; display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.stat-card{
+  background:var(--card); border:1px solid var(--card-border);
+  border-radius:var(--radius-sm); padding:8px 4px; text-align:center;
 }
-.target-popup .leaflet-popup-tip { background: var(--panel-text); }
+.stat-card .n{ font-family:var(--font-mono); font-size:20px; font-weight:700; line-height:1.1; }
+.stat-card .l{ font-size:8.5px; color:var(--text-dim); letter-spacing:.4px; margin-top:2px; text-transform:uppercase; }
+.stat-card.c-all .n{ color:var(--red); }
+.stat-card.c-drone .n{ color:var(--purple); }
+.stat-card.c-missile .n{ color:var(--red); }
+.stat-card.c-air .n{ color:var(--amber); }
 
-/* BaseMap Switcher */
-.bm-fab { border-radius: 0; border: 1px solid var(--card-border); }
-.bm-panel {
-  background: #000; border: 1px solid var(--card-border);
-  border-radius: 0; color: var(--panel-text);
+.radar{
+  width:78px; height:78px; border-radius:50%; flex-shrink:0;
+  background:radial-gradient(circle, rgba(47,225,127,.08), transparent 70%);
+  border:1px solid var(--card-border); position:relative; overflow:hidden;
 }
-.bm-item {
-  border-radius: 0; background: #050505; color: var(--panel-text);
-  border: 1px solid rgba(0, 255, 65, 0.2);
-}
-.bm-item.active { border-color: var(--panel-text); background: var(--btn-primary); }
-.bm-name { color: var(--panel-text); }
-.bm-sub, .bm-title { color: rgba(0, 255, 65, 0.6); font-family: monospace; }
+.radar svg{ width:100%; height:100%; }
+.radar .ring{ fill:none; stroke:rgba(47,225,127,.25); stroke-width:.5; }
+.radar .sweep{ transform-origin:50% 50%; animation:sweep-rotate 3.2s linear infinite; }
+@keyframes sweep-rotate{ to{ transform:rotate(360deg); } }
+.radar .blip{ fill:var(--green); }
 
-/* Changelog Modal */
-#changelogModal {
-  background: #000; border: 1px solid var(--panel-text); border-radius: 0;
+.map-wrap{ position:relative; flex:1; margin:0 16px 12px; border-radius:var(--radius);
+  overflow:hidden; border:1px solid var(--card-border); min-height:280px; }
+#map{ position:absolute; inset:0; background:#0a0f10; }
+.leaflet-container{ background:#0a0f10 !important; font-family:var(--font-body) !important; }
+
+.map-fab-col{ position:absolute; z-index:410; display:flex; flex-direction:column; gap:8px; }
+.map-fab-col.left{ left:10px; top:10px; }
+.map-fab-col.right{ right:10px; top:10px; }
+.map-fab-col.right-bottom{ right:10px; bottom:10px; }
+.fab{
+  width:34px; height:34px; border-radius:9px; border:1px solid var(--card-border);
+  background:rgba(10,16,17,0.85); backdrop-filter:blur(6px);
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; color:var(--text);
 }
-.cl-header { border-bottom: 2px solid var(--panel-text); }
-.cl-header h2 { color: var(--panel-text); text-transform: uppercase; letter-spacing: 3px; }
-.cl-group-title { border-bottom: 1px solid var(--panel-text); color: var(--panel-text); }
-.cl-item { 
-  border-left: 2px solid var(--panel-text); 
-  background: rgba(0, 255, 65, 0.05); border-radius: 0;
+.fab:active{ background:rgba(47,225,127,.15); }
+.fab svg{ width:16px; height:16px; stroke:var(--text); fill:none; stroke-width:2; }
+
+.ppo-row{ display:flex; gap:10px; padding:0 16px 10px; }
+.ppo-card{
+  flex:1.1; background:var(--card); border:1px solid var(--card-border);
+  border-radius:var(--radius-sm); padding:10px 12px;
+}
+.ppo-card .t{ font-size:9.5px; color:var(--text-dim); letter-spacing:.5px; text-transform:uppercase; }
+.ppo-card .v{ font-family:var(--font-display); font-weight:700; color:var(--green); font-size:14px; margin-top:2px; }
+.ppo-bar{ height:4px; border-radius:2px; background:#152019; margin-top:8px; overflow:hidden; }
+.ppo-bar i{ display:block; height:100%; background:linear-gradient(90deg,var(--green),#7dffb8); width:0%; transition:width .6s; }
+
+.alert-banner{
+  flex:2; border-radius:var(--radius-sm); padding:10px 12px;
+  background:var(--red-dim); border:1px solid rgba(255,71,71,.4);
+  display:flex; flex-direction:column; justify-content:center; gap:2px;
+}
+.alert-banner.empty{ background:var(--green-dim); border-color:rgba(47,225,127,.3); }
+.alert-banner .row1{ display:flex; align-items:center; gap:6px; font-family:var(--font-display); font-weight:700; font-size:12.5px; color:var(--red); letter-spacing:.3px; }
+.alert-banner.empty .row1{ color:var(--green); }
+.alert-banner .row1 .time{ margin-left:auto; font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); }
+.alert-banner .row2{ font-size:11.5px; color:var(--text-dim); }
+
+/* =====================================================
+   LISTS (Тривоги / Історія)
+   ===================================================== */
+.subtabs{ display:flex; gap:6px; padding:0 16px 12px; }
+.subtab{
+  flex:1; background:var(--card); border:1px solid var(--card-border);
+  border-radius:20px; padding:8px 6px; text-align:center;
+  font-family:var(--font-display); font-weight:600; font-size:12px;
+  letter-spacing:.4px; color:var(--text-dim); text-transform:uppercase;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.subtab.active{ background:var(--green-dim); border-color:rgba(47,225,127,.4); color:var(--green); }
+.subtab .count{ background:var(--red); color:#fff; font-size:9.5px; font-family:var(--font-mono);
+  border-radius:8px; padding:1px 5px; }
+
+.list-scroll{ flex:1; overflow-y:auto; padding:0 16px 16px; display:flex; flex-direction:column; gap:8px; }
+
+.item-card{
+  display:flex; align-items:center; gap:10px;
+  background:var(--card); border:1px solid var(--card-border);
+  border-radius:var(--radius-sm); padding:10px 12px;
+}
+.item-icon{
+  width:38px; height:38px; border-radius:10px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(255,71,71,.12); border:1px solid rgba(255,71,71,.3);
+}
+.item-icon img{ width:20px; height:20px; object-fit:contain; filter:drop-shadow(0 0 3px rgba(0,0,0,.4)); }
+.item-icon.t-purple{ background:var(--purple-dim); border-color:rgba(155,107,255,.35); }
+.item-icon.t-amber{ background:var(--amber-dim); border-color:rgba(255,176,32,.35); }
+.item-icon.t-green{ background:var(--green-dim); border-color:rgba(47,225,127,.35); }
+
+.item-body{ flex:1; min-width:0; }
+.item-title{ font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:.3px; text-transform:uppercase; color:var(--red); }
+.item-title.t-purple{ color:var(--purple); }
+.item-title.t-amber{ color:var(--amber); }
+.item-title.t-green{ color:var(--green); }
+.item-sub{ font-size:11.5px; color:var(--text-dim); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.item-meta{ font-size:10px; color:var(--text-faint); margin-top:3px; font-family:var(--font-mono); }
+
+.item-right{ text-align:right; flex-shrink:0; }
+.item-time{ font-family:var(--font-mono); font-size:11px; color:var(--text-dim); }
+.item-dot{ width:7px; height:7px; border-radius:50%; background:var(--red); margin:6px 0 0 auto; }
+.item-dot.t-purple{ background:var(--purple); }
+.item-dot.t-amber{ background:var(--amber); }
+.item-dot.t-green{ background:var(--green); }
+
+.empty-state{ text-align:center; padding:40px 20px; color:var(--text-faint); }
+.empty-state .ic{ font-size:34px; margin-bottom:10px; }
+.empty-state .msg{ font-family:var(--font-display); font-weight:600; font-size:14px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px; }
+.empty-state .sub{ font-size:12px; margin-top:4px; }
+
+/* =====================================================
+   CHANNELS
+   ===================================================== */
+.channel-card{
+  display:flex; align-items:center; gap:10px;
+  background:var(--card); border:1px solid var(--card-border);
+  border-radius:var(--radius-sm); padding:10px 12px;
+}
+.channel-avatar{
+  width:38px; height:38px; border-radius:10px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-size:17px;
+  background:var(--bg-raise); border:1px solid var(--card-border);
+}
+.channel-name{ font-weight:600; font-size:13.5px; }
+.channel-handle{ font-size:11px; color:var(--text-dim); font-family:var(--font-mono); }
+
+.toggle{
+  width:42px; height:24px; border-radius:12px; background:#1a2422;
+  border:1px solid var(--card-border); position:relative; flex-shrink:0;
+  transition:background .2s;
+}
+.toggle i{
+  position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%;
+  background:var(--text-faint); transition:transform .2s, background .2s;
+}
+.toggle.on{ background:var(--green-dim); border-color:rgba(47,225,127,.5); }
+.toggle.on i{ transform:translateX(18px); background:var(--green); box-shadow:0 0 6px var(--green); }
+
+.add-channel-btn{
+  margin:4px 16px 16px; padding:12px; border-radius:var(--radius-sm);
+  background:var(--green-dim); border:1px solid rgba(47,225,127,.4);
+  color:var(--green); font-family:var(--font-display); font-weight:700;
+  font-size:13px; letter-spacing:.5px; text-align:center; text-transform:uppercase;
+}
+.field{
+  margin:0 16px 12px; background:var(--card); border:1px solid var(--card-border);
+  border-radius:var(--radius-sm); padding:12px; display:flex; flex-direction:column; gap:6px;
+}
+.field label{ font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.4px; }
+.field input{ background:none; border:none; font-size:14px; outline:none; padding:2px 0; }
+.hint-box{ margin:0 16px 16px; padding:12px; border-radius:var(--radius-sm);
+  background:var(--bg-raise); border:1px solid var(--card-border-soft); color:var(--text-dim); font-size:12px; line-height:1.5; }
+
+/* =====================================================
+   SETTINGS
+   ===================================================== */
+.settings-section{ padding:0 16px 4px; }
+.settings-label{ font-size:10.5px; color:var(--text-faint); letter-spacing:.6px; text-transform:uppercase; padding:14px 2px 8px; font-family:var(--font-display); font-weight:600; }
+.settings-row{
+  display:flex; align-items:center; gap:10px; padding:12px;
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius-sm);
+  margin-bottom:6px;
+}
+.settings-row .ic{ width:20px; text-align:center; opacity:.85; }
+.settings-row .label{ flex:1; font-size:13.5px; }
+.settings-row .chev{ color:var(--text-faint); font-size:16px; }
+.settings-row .val{ font-size:12.5px; color:var(--text-dim); font-family:var(--font-mono); }
+
+/* =====================================================
+   DETAIL MODAL
+   ===================================================== */
+.modal-overlay{
+  position:fixed; inset:0; z-index:100; background:rgba(3,5,6,.7);
+  backdrop-filter:blur(3px); display:none; align-items:flex-end; justify-content:center;
+}
+.modal-overlay.show{ display:flex; }
+.modal-sheet{
+  width:100%; max-width:520px; background:var(--bg-raise);
+  border:1px solid var(--card-border); border-bottom:none;
+  border-radius:20px 20px 0 0; padding:18px 16px calc(18px + var(--safe-bottom));
+  animation:sheet-up .22s ease; max-height:82vh; overflow-y:auto;
+}
+@keyframes sheet-up{ from{ transform:translateY(30px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+.modal-head{ display:flex; align-items:flex-start; gap:10px; margin-bottom:14px; }
+.modal-head .title{ font-family:var(--font-display); font-weight:700; font-size:16px; letter-spacing:.4px; color:var(--red); text-transform:uppercase; }
+.modal-head .sub{ font-size:12px; color:var(--text-dim); margin-top:2px; }
+.modal-close{ margin-left:auto; width:28px; height:28px; border-radius:8px; background:var(--card); border:1px solid var(--card-border); display:flex; align-items:center; justify-content:center; font-size:16px; color:var(--text-dim); flex-shrink:0; }
+.modal-row{ display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--card-border-soft); font-size:13px; }
+.modal-row .k{ color:var(--text-dim); }
+.modal-row .v{ font-weight:600; text-align:right; }
+.modal-danger{ margin-top:14px; padding:10px; text-align:center; border-radius:var(--radius-sm);
+  background:var(--red-dim); color:var(--red); font-family:var(--font-display); font-weight:700;
+  font-size:12px; letter-spacing:.5px; text-transform:uppercase; }
+.modal-actions{ display:flex; gap:8px; margin-top:14px; }
+.modal-actions button{
+  flex:1; padding:11px; border-radius:var(--radius-sm); border:1px solid var(--card-border);
+  background:var(--card); font-family:var(--font-display); font-weight:600; font-size:11.5px;
+  letter-spacing:.3px; text-transform:uppercase; color:var(--text);
 }
 
-/* Viewer Counter */
-#viewerCounter {
-  border-radius: 0; border: 1px solid var(--card-border);
-  background: #000; color: var(--panel-text);
-  font-family: monospace; padding: 8px 15px;
+/* toast */
+#toast{
+  position:fixed; left:50%; bottom:90px; transform:translateX(-50%) translateY(20px);
+  background:var(--card); border:1px solid var(--card-border); color:var(--text);
+  padding:10px 16px; border-radius:20px; font-size:12.5px; z-index:200;
+  opacity:0; transition:opacity .25s, transform .25s; pointer-events:none;
 }
-#viewerCounter .vc-dot { border-radius: 0; width: 8px; height: 8px; }
+#toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 
-/* Stream Offline Overlay */
-#streamOffline {
-  background: #000;
-  background-image: radial-gradient(circle, #001a00 0%, #000 100%);
-}
-#streamOffline h1 { color: #ff3333; font-family: monospace; letter-spacing: 5px; }
-
-@media (max-width:480px) {
-  #statusBar { font-size: 10px; width: 90%; text-align: center; }
-}
-
-/* ===== Пошук / фільтри ===== */
-.filter-switcher { position:absolute; z-index:1100; right:15px; top:70px; }
-.filter-fab {
-  width:42px; height:42px; border-radius:0; border:1px solid var(--card-border);
-  background: rgba(0,20,10,0.85); color: var(--panel-text); font-size:18px;
-  backdrop-filter: blur(5px); cursor:pointer;
-}
-.filter-fab:hover { background: var(--panel-text); color:#000; }
-.filter-panel {
-  display:none; position:absolute; top:48px; right:0; width:250px;
-  background: var(--card-bg); border:1px solid var(--card-border);
-  padding:12px; font-family: monospace; color: var(--panel-text);
-  box-shadow: 0 0 20px rgba(0,255,65,0.15);
-}
-.filter-switcher.open .filter-panel { display:block; }
-.filter-title { font-size:11px; letter-spacing:2px; text-transform:uppercase; opacity:0.8; margin-bottom:8px; }
-.filter-search {
-  width:100%; box-sizing:border-box; background:#000; border:1px solid var(--card-border);
-  color: var(--panel-text); padding:6px 8px; font-family: monospace; font-size:12px; margin-bottom:8px;
-}
-.filter-actions { display:flex; gap:8px; margin-bottom:10px; }
-.filter-actions button {
-  flex:1; background: rgba(0,255,65,0.08); border:1px solid var(--card-border);
-  color: var(--panel-text); padding:5px 0; font-size:10px; text-transform:uppercase; cursor:pointer;
-}
-.filter-actions button:active { background: var(--card-active); }
-.filter-types { display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto; }
-.filter-type-row { display:flex; align-items:center; gap:8px; font-size:11px; cursor:pointer; user-select:none; }
-.filter-type-row .dot { width:9px; height:9px; flex-shrink:0; border-radius:50%; box-shadow:0 0 5px currentColor; }
-.filter-type-row.disabled { opacity:0.35; }
-.filter-type-row .count { margin-left:auto; opacity:0.6; }
-
-/* ===== Кластери ===== */
-.cluster-wrap { background: transparent !important; border: none !important; }
-.cluster-badge {
-  width:34px; height:34px; border-radius:50%;
-  background: rgba(0, 20, 10, 0.92); border: 2px solid var(--panel-text);
-  color: var(--panel-text); display:flex; align-items:center; justify-content:center;
-  font: 700 12px monospace; box-shadow: 0 0 12px rgba(0,255,65,0.35);
-}
-
-/* ===== Safe-area (Telegram Mini App) ===== */
-#recenterBtn { bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
-#basemapSwitcher, .filter-switcher { top: calc(70px + env(safe-area-inset-top, 0px)); }
-#statusBar { top: calc(15px + env(safe-area-inset-top, 0px)); }
-  </style>
+@media (min-width:521px){ #app{ border-left:1px solid var(--card-border-soft); border-right:1px solid var(--card-border-soft); } }
+</style>
 </head>
 <body>
+<div id="app">
 
-<!-- Заглушка: карта вимкнена -->
-<div id="streamOffline">
-  <div class="offline-icon">📡</div>
-  <h1>Карту зараз вимкнено</h1>
-  <p>Карта працює в ручному режимі — цілі вносяться оператором вручну. Тому трансляція доступна лише тоді, коли адміністратор має можливість вести моніторинг.</p>
-</div>
-
-<button id="recenterBtn" class="recenter-btn" title="Центрувати на цілях"></button>
-
-<div id="map">
-  <div id="statusBar">⏱ --:-- • цілей 0</div>
-</div>
-<div id="newTargetToast"></div>
-
-<div id="basemapSwitcher" class="basemap-switcher"></div>
-
-<div id="filterSwitcher" class="filter-switcher">
-  <button type="button" class="filter-fab" id="filterFab" title="Пошук і фільтри">🔎</button>
-  <div class="filter-panel" id="filterPanel">
-    <div class="filter-title">Пошук і фільтри</div>
-    <input type="text" id="filterSearch" class="filter-search" placeholder="Пошук за назвою населеного пункту…" autocomplete="off">
-    <div class="filter-actions">
-      <button type="button" id="filterAllBtn">Всі</button>
-      <button type="button" id="filterNoneBtn">Жодного</button>
-    </div>
-    <div class="filter-types" id="filterTypes"></div>
+  <!-- ============ TOPBAR (shown on all pages) ============ -->
+  <div class="topbar">
+    <div class="logo">📡</div>
+    <h1 id="app-title">Монитор Тривог</h1>
+    <div class="status-dot"><i></i><span id="conn-status">ONLINE</span></div>
   </div>
+
+  <div class="pages">
+
+    <!-- ============ PAGE: КАРТА ============ -->
+    <section class="page active" id="page-map">
+      <div class="stats-row">
+        <div class="stat-cards">
+          <div class="stat-card c-all"><div class="n" id="stat-all">0</div><div class="l">Активні</div></div>
+          <div class="stat-card c-drone"><div class="n" id="stat-drone">0</div><div class="l">Шахеди</div></div>
+          <div class="stat-card c-missile"><div class="n" id="stat-missile">0</div><div class="l">Ракети</div></div>
+          <div class="stat-card c-air"><div class="n" id="stat-air">0</div><div class="l">Авіація</div></div>
+        </div>
+        <div class="radar">
+          <svg viewBox="0 0 100 100">
+            <circle class="ring" cx="50" cy="50" r="44"/>
+            <circle class="ring" cx="50" cy="50" r="30"/>
+            <circle class="ring" cx="50" cy="50" r="16"/>
+            <g class="sweep">
+              <path d="M50 50 L50 6 A44 44 0 0 1 78 20 Z" fill="url(#sweepGrad)"/>
+            </g>
+            <defs>
+              <linearGradient id="sweepGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#2fe17f" stop-opacity="0.55"/>
+                <stop offset="100%" stop-color="#2fe17f" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <g id="radar-blips"></g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="map-wrap">
+        <div id="map"></div>
+        <div class="map-fab-col left">
+          <button class="fab" id="btn-layers" title="Слои">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          </button>
+          <button class="fab" id="btn-locate" title="Моё местоположение">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          </button>
+          <button class="fab" id="btn-filter" title="Фильтры">
+            <svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          </button>
+        </div>
+        <div class="map-fab-col right">
+          <button class="fab" id="btn-zoom-in">+</button>
+          <button class="fab" id="btn-zoom-out">−</button>
+        </div>
+        <div class="map-fab-col right-bottom">
+          <button class="fab" id="btn-center">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="ppo-row">
+        <div class="ppo-card">
+          <div class="t">ППО · Стан</div>
+          <div class="v">АКТИВНА</div>
+          <div class="t" style="margin-top:6px;">Цілей знищено: <span id="ppo-destroyed" style="color:var(--text);font-family:var(--font-mono)">0</span></div>
+          <div class="ppo-bar"><i id="ppo-fill"></i></div>
+        </div>
+        <div class="alert-banner empty" id="alert-banner">
+          <div class="row1"><span id="banner-title">Загроз не виявлено</span><span class="time" id="banner-time"></span></div>
+          <div class="row2" id="banner-sub">Моніторинг триває</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PAGE: ТРИВОГИ ============ -->
+    <section class="page" id="page-alerts">
+      <div class="page-header"><h2>Тривоги</h2></div>
+      <div class="subtabs" id="alerts-subtabs">
+        <button class="subtab active" data-mode="active">Активні <span class="count" id="count-active">0</span></button>
+        <button class="subtab" data-mode="history">Історія</button>
+        <button class="subtab" data-mode="all">Всі</button>
+      </div>
+      <div class="list-scroll" id="alerts-list"></div>
+    </section>
+
+    <!-- ============ PAGE: КАНАЛИ ============ -->
+    <section class="page" id="page-channels">
+      <div class="page-header"><h2>Канали</h2></div>
+      <div class="subtabs" id="channels-subtabs">
+        <button class="subtab active" data-mode="mine">Мої канали <span class="count" id="count-channels">0</span></button>
+        <button class="subtab" data-mode="add">Додати канал</button>
+      </div>
+      <div class="list-scroll" id="channels-view"></div>
+    </section>
+
+    <!-- ============ PAGE: ІСТОРІЯ ============ -->
+    <section class="page" id="page-history">
+      <div class="page-header"><h2>Історія</h2></div>
+      <div class="list-scroll" id="history-list"></div>
+    </section>
+
+    <!-- ============ PAGE: НАЛАШТУВАННЯ ============ -->
+    <section class="page" id="page-settings">
+      <div class="page-header"><h2>Налаштування</h2></div>
+      <div class="list-scroll" style="gap:0;">
+        <div class="settings-label">Сповіщення</div>
+        <div class="settings-row"><span class="ic">🔊</span><span class="label">Звукові сповіщення</span><div class="toggle" data-setting="sound"><i></i></div></div>
+        <div class="settings-row"><span class="ic">📳</span><span class="label">Вібрація</span><div class="toggle" data-setting="vibrate"><i></i></div></div>
+        <div class="settings-row"><span class="ic">⚡</span><span class="label">Високий пріоритет (екран)</span><div class="toggle" data-setting="priority"><i></i></div></div>
+
+        <div class="settings-label">Фільтри загроз</div>
+        <div id="type-filters"></div>
+
+        <div class="settings-label">Інше</div>
+        <div class="settings-row" id="row-bg-update"><span class="ic">🔄</span><span class="label">Оновлення в фоні</span><span class="val">Завжди</span><span class="chev">›</span></div>
+        <div class="settings-row" id="row-clear-history"><span class="ic">🗑</span><span class="label">Очистити історію</span><span class="chev">›</span></div>
+        <div class="settings-row" id="row-about"><span class="ic">ℹ️</span><span class="label">Про додаток</span><span class="chev">›</span></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ============ BOTTOM NAV ============ -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-page="map">
+      <svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+      Карта
+    </button>
+    <button class="nav-btn" data-page="alerts">
+      <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      Тривоги
+      <span class="nav-badge" id="nav-badge-alerts" style="display:none;">0</span>
+    </button>
+    <button class="nav-btn" data-page="channels">
+      <svg viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+      Канали
+    </button>
+    <button class="nav-btn" data-page="history">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+      Історія
+    </button>
+    <button class="nav-btn" data-page="settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Налаштування
+    </button>
+  </nav>
 </div>
 
+<!-- ============ DETAIL MODAL ============ -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-sheet" id="modal-sheet"></div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
-/* ===================== КОНФІГ ===================== */
-const DEFAULT_CONFIG = {
-  BASE_URL: (location.origin && location.origin !== 'null') ? location.origin : 'http://139.28.36.16:8000',
-  AUTH_URL: '/auth/login',
-  TARGETS_REST: '/targets',
-  CLIENT_WATERMARK: true,
-  WATERMARK_TEXT: '@SkyKh_info',
-  WM_FONT_ABS: 0.028,
-  WM_LOGO_PATH: 'Logo_SkyKh.jpg',
-  ICON_SCALE_BY_ZOOM: [[10,1.0],[12,1.2],[14,1.4],[16,1.65]],
-  ADMIN_PANEL_URL: 'https://admin.skykharkiv.online',
-};
-const APP_CONFIG = Object.assign({}, DEFAULT_CONFIG, (window.APP_CONFIG || {}));
-
-/* ===== resolveIconUrl ===== */
-const resolveIconUrl = (p) => {
-  if (!p) return p;
-  if (/^https?:\/\//i.test(p)) return p;
-  const base = (APP_CONFIG.BASE_URL || location.origin || '').replace(/\/$/, '');
-  const path = p.startsWith('/') ? p : `/${p}`;
-  return base ? (base + path) : path;
-};
-
-/* ===== Утиліти ===== */
-const pad2 = n => String(n).padStart(2, '0');
-
-/* ===== Іконки (канонічний набір — 1-в-1 з парсером/AI-класифікатором) ===== */
-let ICON_PATHS = {
-  recon: 'recon.png', drone: 'drone.png', fpw: 'fpw.png',
-  lancet: 'lancet.png', molniya: 'molniya.png', kab: 'kab.png',
-  missile: 'missile.png', mrls: 'mrls.png', aircraft: 'aircraft.png',
-  unknown: 'unknown.png'
-};
-
-async function loadIconsFromAdmin() {
-  try {
-    const base = (location.origin || '').replace(/\/$/, '');
-    const resp = await fetch(base + '/api/icons', { cache: 'no-store' });
-    if (!resp.ok) return;
-    const data = await resp.json();
-    const icons = data.icons || {};
-    if (!Object.keys(icons).length) return;
-    Object.entries(icons).forEach(([key, cfg]) => {
-      let path = cfg.path || cfg.file;
-      if (path) {
-        if (path.startsWith('/static/icons/') || path.startsWith('static/icons/')) {
-          ICON_PATHS[key] = base + (path.startsWith('/') ? path : '/' + path);
-        } else if (/^https?:\/\//i.test(path)) {
-          ICON_PATHS[key] = path;
-        } else {
-          ICON_PATHS[key] = path;
-        }
-      }
-    });
-  } catch (e) {
-    console.warn('[Icons] Failed to load from admin:', e.message);
-  }
-}
-
-/* ===== Типи цілей (канонічні, відповідають types.json / ai_classifier.py) ===== */
-const TYPES = [
-  ['drone',28,45], ['fpw',26,45], ['recon',34,45], ['molniya',34,45], ['lancet',34,45],
-  ['kab',30,180], ['missile',32,45], ['mrls',60,45], ['aircraft',36,45], ['unknown',32,0]
-];
-const LABELS = {
-  drone:'Шахед', recon:'Розвід. БпЛА', molniya:'Молнія', lancet:'Ланцет',
-  kab:'КАБ', missile:'Ракета', mrls:'РСЗО / Артилерія', aircraft:'Літак',
-  fpw:'FPV дрон', unknown:'Невідомо'
-};
-const SHORT = {
-  drone:'Шахедів:', recon:'Розвід.:', molniya:'Молній:', lancet:'Ланцетів:',
-  kab:'КАБів:', missile:'Ракет:', mrls:'РСЗО:', aircraft:'Літаків:',
-  fpw:'FPV:', unknown:'Невід.:'
-};
-const TYPE_COLORS = {
-  drone:'#00ff41', fpw:'#ff9d00', recon:'#39c6ff', molniya:'#ffe600',
-  lancet:'#ff3333', kab:'#ff6a00', missile:'#ff0033', mrls:'#c400ff',
-  aircraft:'#8fffb0', unknown:'#888888'
-};
-
-/* ===== Глобальні змінні ===== */
-let map, drones = [], markersGroup = null, iconCluster = null, linesGroup = null, targetsById = {};
-const filterState = { types: new Set(Object.keys({recon:1,drone:1,fpw:1,lancet:1,molniya:1,kab:1,missile:1,mrls:1,aircraft:1,unknown:1})), search: '' };
-let currentBaseMeta = { name: 'Google Рельєф', isDark: false };
-let currentBaseLayer = null, currentBaseIdx = 0;
-window.allTargets = [];
-
-/* ===== Відстеження нових цілей поза екраном ===== */
-let _knownTargetIds = new Set();
-let _toastTimer = null;
-
-function showNewTargetToast(count, typeSummary) {
-  const el = document.getElementById('newTargetToast');
-  if (!el) return;
-  el.textContent = `+${count} ${count === 1 ? 'нова ціль' : (count < 5 ? 'нових цілі' : 'нових цілей')}${typeSummary ? ' • ' + typeSummary : ''} ↗`;
-  el.classList.add('show');
-  hapticNotify('warning');
-  if (_toastTimer) clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => { el.classList.remove('show'); }, 4500);
-}
-
-function hideNewTargetToast() {
-  const el = document.getElementById('newTargetToast');
-  if (el) el.classList.remove('show');
-  if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
-}
-
-/* ===== Базові шари ===== */
-const googleTerrain = L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', { maxZoom: 19, attribution: '© Google' });
-const googleRoads = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 19, attribution: '© Google' });
-const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 19, attribution: '© Google' });
-const cartoPositron = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' });
-const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' });
-const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' });
-
-const BASE_LAYERS = [
-  { name: 'Google Рельєф', layer: googleTerrain, isDark: false },
-  { name: 'Google Дороги', layer: googleRoads, isDark: false },
-  { name: 'Google Гібрид', layer: googleHybrid, isDark: true },
-  { name: 'CARTO Світла', layer: cartoPositron, isDark: false },
-  { name: 'CARTO Темна', layer: cartoDark, isDark: true },
-  { name: 'OSM Стандарт', layer: osm, isDark: false }
-];
-
-const canvasRenderer = L.canvas({ padding: 0.5 });
-
-/* ===== Плавний рух маркера між старою і новою точкою ===== */
-function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
-function animateMarkerMove(marker, from, to, duration = 900) {
-  if (!marker || !from || !to) return;
-  const start = performance.now();
-  const dLat = to.lat - from.lat, dLng = to.lng - from.lng;
-  if (Math.abs(dLat) < 1e-7 && Math.abs(dLng) < 1e-7) return;
-  function step(now) {
-    const p = Math.min(1, (now - start) / duration);
-    const e = easeOutCubic(p);
-    marker.setLatLng([from.lat + dLat * e, from.lng + dLng * e]);
-    if (p < 1) requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
-}
-
-/* ===== Анімація (rAF) ===== */
-const anims = new Set();
-let sectorPulsePhase = 0;
-const ANIM_MS = 14000;
-function startAnimFor(d, A, B) { d._animData = { A, B, started: performance.now() }; anims.add(d); }
-function stopAnimFor(d) { anims.delete(d); d._animData = null; }
-function tick() {
-  const now = performance.now();
-  for (const d of anims) {
-    const { A, B, started } = d._animData || {};
-    if (!A || !B) continue;
-    const p = ((now - started) % ANIM_MS) / ANIM_MS;
-    d.marker.setLatLng([A.lat + (B.lat - A.lat) * p, A.lng + (B.lng - A.lng) * p]);
-  }
-  requestAnimationFrame(tick);
-}
-
-/* ===== Геоутиліти ===== */
-function scaleForZoom(z) {
-  const table = APP_CONFIG.ICON_SCALE_BY_ZOOM || [];
-  let mult = 1;
-  for (const [zz, m] of table) { if (z >= zz) mult = m; }
-  if (currentBaseMeta.isDark) mult *= 1.08;
-  return mult;
-}
-
-function sectorRadiusByZoom(baseRadius, baseZoom = 10) {
-  return baseRadius * Math.pow(1.7, baseZoom - map.getZoom());
-}
-
-function icon(name, size) {
-  const s = Math.round((size || 36) * scaleForZoom(map.getZoom()));
-  const url = resolveIconUrl(ICON_PATHS[name] || `${name}.png`);
-  return L.icon({ iconUrl: url, iconSize: [s, s], iconAnchor: [s / 2, s / 2] });
-}
-
-function refreshIconsByZoom() {
-  const z = map.getZoom();
-  drones.forEach(d => {
-    if (!d) return;
-    d.marker.setIcon(icon(d.iconT || d.type || 'drone', d.baseSize || 36));
-    if (d.ring) d.ring.setRadius((d.baseSize || 36) * scaleForZoom(z) * 0.32);
-  });
-}
-
-function bearing(a, b) {
-  const r = Math.PI / 180, dλ = (b.lng - a.lng) * r;
-  const y = Math.sin(dλ) * Math.cos(b.lat * r);
-  const x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos(dλ);
-  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-}
-
-function dest(pt, brg, dist) {
-  const R = 6371000, δ = dist / R, θ = brg * Math.PI / 180;
-  const φ1 = pt.lat * Math.PI / 180, λ1 = pt.lng * Math.PI / 180;
-  const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ));
-  const λ2 = λ1 + Math.atan2(Math.sin(θ) * Math.sin(δ) * Math.cos(φ1), Math.cos(δ) - Math.sin(φ1) * Math.cos(φ2));
-  return L.latLng(φ2 * 180 / Math.PI, (λ2 * 180 / Math.PI + 540) % 360 - 180);
-}
-
-function getEndpoint(lat, lon, bearingDeg, distKm = 15) {
-  const R = 6371, ad = distKm / R;
-  const la1 = lat * Math.PI / 180, lo1 = lon * Math.PI / 180, br = bearingDeg * Math.PI / 180;
-  const la2 = Math.asin(Math.sin(la1) * Math.cos(ad) + Math.cos(la1) * Math.sin(ad) * Math.cos(br));
-  const lo2 = lo1 + Math.atan2(Math.sin(br) * Math.sin(ad) * Math.cos(la1), Math.cos(ad) - Math.sin(la1) * Math.sin(la2));
-  return [la2 * 180 / Math.PI, lo2 * 180 / Math.PI];
-}
-
-/* ===== РСЗО: підпис + сектор ===== */
-function ensureRszoLabel(d) {
-  if (!d || d.type !== 'mrls') return;
-  const brg = (typeof d.lastBearing === 'number') ? d.lastBearing : 0;
-  const side = (brg >= 0 && brg <= 180) ? 'left' : 'right';
-  const offset = (side === 'left') ? L.point(-26, 0) : L.point(26, 0);
-  const txt = (typeof d.lastBearing === 'number') ? `РСЗО • ${Math.round(d.lastBearing)}°` : 'РСЗО';
-  const opts = { permanent: true, interactive: false, className: 'rszo-tag', direction: side, offset, opacity: 0.95 };
-  if (!d.rszoLabel) {
-    d.rszoLabel = L.tooltip(opts).setContent(txt);
-    d.marker.bindTooltip(d.rszoLabel).openTooltip();
-  } else {
-    d.rszoLabel.setContent(txt);
-    d.rszoLabel.options.direction = side;
-    d.rszoLabel.options.offset = offset;
-    d.marker.unbindTooltip();
-    d.marker.bindTooltip(d.rszoLabel).openTooltip();
-  }
-}
-
-function buildSectorLatLngs(center, bearingDeg, radiusMeters, halfAngleDeg, steps = 28) {
-  const pts = [center];
-  const start = bearingDeg - halfAngleDeg, end = bearingDeg + halfAngleDeg;
-  for (let i = 0; i <= steps; i++) pts.push(dest(center, start + (end - start) * (i / steps), radiusMeters));
-  pts.push(center);
-  return pts;
-}
-
-function drawSectorZone(d) {
-  if (!d.sectorCfg) return;
-  const cfg = d.sectorCfg, center = d.marker.getLatLng();
-  const radius = sectorRadiusByZoom(cfg.baseRadius, cfg.baseZoom);
-  if (d.zoneLayer) map.removeLayer(d.zoneLayer);
-  const leftPt = dest(center, cfg.bearing - cfg.halfA, radius);
-  const rightPt = dest(center, cfg.bearing + cfg.halfA, radius);
-  d.zoneLayer = L.layerGroup([
-    L.polyline([center, leftPt], { renderer: canvasRenderer, color: '#ff0033', weight: 2, opacity: 0.7, interactive: false }),
-    L.polyline([center, rightPt], { renderer: canvasRenderer, color: '#ff0033', weight: 2, opacity: 0.7, interactive: false })
-  ]).addTo(map);
-}
-
-function redrawAllSectors() { drones.forEach(d => { if (d?.sectorCfg) drawSectorZone(d); }); }
-function pulseSectors() {
-  sectorPulsePhase += 0.04;
-  const a = 0.45 + Math.sin(sectorPulsePhase) * 0.25;
-  drones.forEach(d => { if (d?.zoneLayer) d.zoneLayer.eachLayer(l => { if (l instanceof L.Polyline) l.setStyle({ opacity: a }); }); });
-  requestAnimationFrame(pulseSectors);
-}
-
-/* ===== Візуал ===== */
-function recolorLabels() {
-  const dark = currentBaseMeta.isDark;
-  document.querySelectorAll('.drone-label').forEach(t => t.classList.toggle('light', !dark));
-}
-function recolorRoutes() {}
-
-/* ===== Статус-бар ===== */
-function buildAutoCaption() {
-  const counts = {};
-  drones.forEach(d => { if (d) counts[d.type] = (counts[d.type] || 0) + 1; });
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  if (!total) return '';
-  return `Цілей ${total}: ` + Object.entries(counts).map(([t, q]) => `${SHORT[t] || t} ${q}`).join(' | ');
-}
-
-function updateStatus() {
-  const now = new Date();
-  const text = `⏱ ${pad2(now.getHours())}:${pad2(now.getMinutes())} • ${buildAutoCaption() || 'Цілей 0'}`;
-  const el = document.getElementById('statusBar');
-  if (el) el.textContent = text;
-}
-
-/* ===== Оновлення цілей з сервера ===== */
-function updateMapData(data) {
-  if (!map) return;
-  const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
-  window.allTargets = items;
-
-  const seen = new Set();
-  items.forEach(item => {
-    const lat = parseFloat(item.lat), lon = parseFloat(item.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-
-    const id = item.id || `${item.type || 't'}:${lat},${lon}`;
-    seen.add(id);
-
-    const t = item.type || "drone";
-    const meta = TYPES.find(x => x[0] === t);
-    const size = meta?.[1] || 36, rotOffset = meta?.[2] ?? 45;
-    const icn = icon(t, size);
-
-    // Bearing
-    let brg = null;
-    if (typeof item.bearing === 'number') brg = item.bearing;
-    else if (typeof item.course === 'number') brg = item.course;
-    else if (typeof item.angle === 'number') brg = item.angle;
-    else if (item.vector) {
-      let vx, vy;
-      if (Array.isArray(item.vector) && item.vector.length >= 2) { vx = parseFloat(item.vector[0]); vy = parseFloat(item.vector[1]); }
-      else if (typeof item.vector === 'object') { vx = parseFloat(item.vector.x ?? item.vector.dx); vy = parseFloat(item.vector.y ?? item.vector.dy); }
-      if (Number.isFinite(vx) && Number.isFinite(vy)) brg = (Math.atan2(vx, vy) * 180 / Math.PI + 360) % 360;
-    }
-
-    let d = targetsById[id];
-
-    if (!d) {
-      // Новий маркер
-      let marker;
-      if (typeof L.rotatedMarker === 'function') {
-        marker = L.rotatedMarker([lat, lon], { icon: icn, rotationAngle: brg !== null ? (brg - rotOffset) : 0, rotationOrigin: 'center', pane: 'targetsPane' });
-      } else {
-        marker = L.marker([lat, lon], { icon: icn, pane: 'targetsPane', rotationOrigin: 'center center' });
-      }
-      if (iconCluster) iconCluster.addLayer(marker); else marker.addTo(map);
-
-      const shadow = L.polyline([], { color: '#000', weight: 4, opacity: 0.25, interactive: false, lineCap: 'round', lineJoin: 'round' }).addTo(markersGroup || map);
-      const line = L.polyline([], { color: '#ff2a2a', weight: 1.4, opacity: 0.9, interactive: false, lineCap: 'butt', lineJoin: 'round' }).addTo(markersGroup || map);
-
-      // Попап з назвою цілі та описом при натисканні
-      const label = LABELS[t] || t;
-      const desc = item.description || '';
-      const popupHtml = desc ? `<b>${label}</b><div style="margin-top:4px;font-weight:400;opacity:0.85">${desc}</div>` : `<b>${label}</b>`;
-      marker.bindPopup(popupHtml, { closeButton: false, className: 'target-popup', offset: [0, -8] });
-      marker.on('click', () => hapticImpact('light'));
-
-      d = { id, type: t, iconT: t, baseSize: size, rotOffset, marker, shadow, line, lastBearing: brg, courseLine: null, points: [L.latLng(lat, lon)], description: desc };
-      targetsById[id] = d;
-      drones.push(d);
-    } else {
-      // Оновлення — плавно, а не стрибком
-      const newPt = L.latLng(lat, lon);
-      const fromPt = d.marker.getLatLng();
-      animateMarkerMove(d.marker, fromPt, newPt, 900);
-      d.points.push(newPt);
-      if (d.line) d.line.setLatLngs(d.points);
-      if (d.shadow) d.shadow.setLatLngs(d.points);
-      if (brg !== null && d.type !== 'mrls') d.marker.setRotationAngle?.(brg - d.rotOffset);
-      const typeChanged = d.type !== t;
-      if (typeChanged) { d.marker.setIcon(icn); d.type = t; d.iconT = t; d.baseSize = size; d.rotOffset = rotOffset; }
-      // Оновлюємо опис і попап
-      const newDesc = item.description || '';
-      if (newDesc !== d.description || typeChanged) {
-        d.description = newDesc;
-        const lbl = LABELS[d.type] || d.type;
-        d.marker.setPopupContent(newDesc ? `<b>${lbl}</b><div style="margin-top:4px;font-weight:400;opacity:0.85">${newDesc}</div>` : `<b>${lbl}</b>`);
-      }
-      d.lastBearing = brg;
-    }
-
-    // РСЗО: сектор (лінії) — якщо є bearing
-    if (d.type === 'mrls' && brg !== null) {
-      d.sectorCfg = { baseRadius: 14000, baseZoom: 10, halfA: 18, bearing: brg };
-      drawSectorZone(d);
-      ensureRszoLabel(d);
-    }
-
-    // Лінія курсу (зелена пунктирна) — для НЕ-РСЗО цілей
-    if (d.courseLine) { map.removeLayer(d.courseLine); d.courseLine = null; }
-    let end = null;
-    const ptA = L.latLng(lat, lon);
-    if (item.vector) {
-      if (Array.isArray(item.vector) && item.vector.length >= 2) { const vlat = parseFloat(item.vector[0]), vlon = parseFloat(item.vector[1]); if (Number.isFinite(vlat) && Number.isFinite(vlon)) end = [vlat, vlon]; }
-      else if (typeof item.vector === 'object') { const vlat = parseFloat(item.vector.lat ?? item.vector.y ?? item.vector.dy), vlon = parseFloat(item.vector.lon ?? item.vector.x ?? item.vector.dx); if (Number.isFinite(vlat) && Number.isFinite(vlon)) end = [vlat, vlon]; }
-    }
-    if (!end && brg !== null) end = getEndpoint(lat, lon, brg, 15);
-    if (end) d.courseLine = L.polyline([[lat, lon], [end[0], end[1]]], { color: '#79ff9a', weight: 2, dashArray: '5, 10', opacity: 0.6, interactive: false }).addTo(markersGroup || map);
-  });
-
-  // Видаляємо відсутні цілі
-  Object.keys(targetsById).forEach(id => {
-    if (seen.has(id)) return;
-    const d = targetsById[id];
-    if (d?.marker) { if (iconCluster) iconCluster.removeLayer(d.marker); map.removeLayer(d.marker); }
-    [d?.shadow, d?.line, d?.courseLine, d?.zoneLayer, d?.rszoLabel].forEach(l => { if (l) { map.removeLayer(l); if (linesGroup) linesGroup.removeLayer(l); } });
-    delete targetsById[id];
-    drones = drones.filter(x => x && x.id !== id);
-  });
-
-  // Виявлення нових цілей поза видимою областю
-  if (_knownTargetIds.size > 0) {
-    const bounds = map.getBounds();
-    const newOutside = [];
-    for (const item of items) {
-      const lat = parseFloat(item.lat), lon = parseFloat(item.lon);
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-      const id = item.id || `${item.type || 't'}:${lat},${lon}`;
-      if (!_knownTargetIds.has(id) && !bounds.contains([lat, lon])) {
-        newOutside.push(item.type || 'drone');
-      }
-    }
-    if (newOutside.length > 0) {
-      const typeCounts = {};
-      newOutside.forEach(t => { typeCounts[t] = (typeCounts[t] || 0) + 1; });
-      const summary = Object.entries(typeCounts).map(([t, q]) => `${LABELS[t] || t} ${q}`).join(', ');
-      showNewTargetToast(newOutside.length, summary);
-    }
-  }
-  // Оновлюємо відомі ID
-  _knownTargetIds = new Set(seen);
-
-  buildFilterPanel();
-  applyFilters();
-  updateStatus();
-}
-
-function recenterTargets() {
-  const items = Array.isArray(window.allTargets) ? window.allTargets : [];
-  if (items.length) {
-    const coords = items.map(it => [parseFloat(it.lat), parseFloat(it.lon)]).filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]));
-    coords.push([49.9935, 36.2304]);
-    if (coords.length) { map.flyToBounds(coords, { padding: [50, 50], maxZoom: 12 }); return; }
-  }
-  map.flyTo([49.9935, 36.2304], 11);
-}
-
-/* ===== Ініціалізація карти ===== */
-function initApp() {
-  if (window.mapInitialized) return;
-  window.mapInitialized = true;
-
-  map = L.map('map', { center: [49.9, 36.3], zoom: 10, preferCanvas: true, zoomControl: false });
-  map.createPane('targetsPane');
-  map.getPane('targetsPane').style.zIndex = 650;
-
-  // Лінії/сектори/тіні — окремий незкластеризований шар (кластеризуються лише іконки цілей)
-  linesGroup = L.layerGroup({ pane: 'targetsPane' }).addTo(map);
-
-  // Кластеризація іконок цілей: розкластеризовується вже на близькому зумі,
-  // щоб не ховати реальні цілі одна за одною
-  if (typeof L.markerClusterGroup === 'function') {
-    iconCluster = L.markerClusterGroup({
-      maxClusterRadius: 42,
-      disableClusteringAtZoom: 12,
-      spiderfyOnMaxZoom: true,
-      showCoverageOnHover: false,
-      iconCreateFunction: function (cluster) {
-        const n = cluster.getChildCount();
-        return L.divIcon({ html: `<div class="cluster-badge">${n}</div>`, className: 'cluster-wrap', iconSize: [34, 34] });
-      }
-    });
-    map.addLayer(iconCluster);
-  }
-  markersGroup = linesGroup; // зворотна сумісність з рештою коду, що посилається на markersGroup
-
-  // Початкове завантаження цілей
-  setTimeout(async () => {
-    try {
-      const resp = await fetch('/targets');
-      const data = await resp.json();
-      if (typeof updateMapData === 'function') updateMapData(data);
-    } catch (e) { console.error('Initial targets fetch failed:', e); }
-  }, 500);
-
-  BASE_LAYERS[0].layer.addTo(map);
-  currentBaseLayer = BASE_LAYERS[0].layer;
-  currentBaseIdx = 0;
-
-  requestAnimationFrame(tick);
-  requestAnimationFrame(pulseSectors);
-
-  // Фолбек-іконка, якщо файл конкретного типу цілі не завантажився
-  document.getElementById('map').addEventListener('error', (e) => {
-    const img = e.target;
-    if (img?.tagName === 'IMG' && !img.dataset.fallbackApplied) {
-      img.dataset.fallbackApplied = '1';
-      img.src = resolveIconUrl(ICON_PATHS.unknown || 'unknown.png');
-    }
-  }, true);
-
-  buildBasemapSwitcher();
-
-  // Кнопка підкладок
-  const sw = document.getElementById('basemapSwitcher');
-  if (sw) {
-    const bmFab = sw.querySelector('.bm-fab');
-    if (bmFab) bmFab.addEventListener('click', e => { e.stopPropagation(); hapticImpact('light'); sw.classList.toggle('open'); });
-    document.addEventListener('click', e => { if (!sw.contains(e.target)) sw.classList.remove('open'); });
-  }
-
-  // Пошук і фільтри
-  const filterSw = document.getElementById('filterSwitcher');
-  const filterFab = document.getElementById('filterFab');
-  const filterSearch = document.getElementById('filterSearch');
-  if (filterSw && filterFab) {
-    filterFab.addEventListener('click', e => {
-      e.stopPropagation();
-      hapticImpact('light');
-      filterSw.classList.toggle('open');
-      syncBackButton();
-    });
-    document.addEventListener('click', e => { if (!filterSw.contains(e.target)) { filterSw.classList.remove('open'); syncBackButton(); } });
-  }
-  if (filterSearch) {
-    filterSearch.addEventListener('input', e => { filterState.search = e.target.value; applyFilters(); });
-  }
-  document.getElementById('filterAllBtn')?.addEventListener('click', () => {
-    TYPES.forEach(([t]) => filterState.types.add(t));
-    hapticImpact('light'); buildFilterPanel(); applyFilters();
-  });
-  document.getElementById('filterNoneBtn')?.addEventListener('click', () => {
-    filterState.types.clear();
-    hapticImpact('light'); buildFilterPanel(); applyFilters();
-  });
-
-  // Telegram BackButton — закриває відкриті панелі замість виходу з міні-аппи
-  function syncBackButton() {
-    const tg = window.tgWebApp;
-    if (!tg?.BackButton) return;
-    const anyOpen = filterSw?.classList.contains('open') || sw?.classList.contains('open') ||
-      document.getElementById('changelogOverlay')?.classList.contains('open');
-    if (anyOpen) {
-      tg.BackButton.show();
-      tg.BackButton.offClick(closeAllPanels);
-      tg.BackButton.onClick(closeAllPanels);
-    } else {
-      tg.BackButton.hide();
-    }
-  }
-  function closeAllPanels() {
-    filterSw?.classList.remove('open');
-    sw?.classList.remove('open');
-    document.getElementById('changelogOverlay')?.classList.remove('open');
-    syncBackButton();
-  }
-  window.syncMiniAppBackButton = syncBackButton;
-
-  // Рецентр
-  const recenterBtn = document.getElementById('recenterBtn');
-  if (recenterBtn) recenterBtn.onclick = () => { hapticImpact('medium'); recenterTargets(); };
-
-  // Натискання на статус-бар → показати всі цілі
-  const statusBar = document.getElementById('statusBar');
-  if (statusBar) statusBar.onclick = () => recenterTargets();
-
-  // Натискання на toast → показати всі цілі + сховати toast
-  const toast = document.getElementById('newTargetToast');
-  if (toast) toast.onclick = () => { hideNewTargetToast(); recenterTargets(); };
-
-  L.control.scale({ imperial: false, metric: true, maxWidth: 120 }).addTo(map);
-  document.body.classList.toggle('dark-map', BASE_LAYERS[0].isDark);
-
-  map.on('zoomend', () => { refreshIconsByZoom(); redrawAllSectors(); });
-}
-
-/* ===== Пошук і фільтри по типу цілі ===== */
-function buildFilterPanel() {
-  const container = document.getElementById('filterTypes');
-  if (!container) return;
-  container.innerHTML = '';
-  const counts = {};
-  drones.forEach(d => { if (d) counts[d.type] = (counts[d.type] || 0) + 1; });
-
-  TYPES.forEach(([t]) => {
-    const row = document.createElement('label');
-    row.className = 'filter-type-row' + (filterState.types.has(t) ? '' : ' disabled');
-    row.dataset.type = t;
-    const color = TYPE_COLORS[t] || '#0f4';
-    row.innerHTML = `<span class="dot" style="background:${color};color:${color}"></span>` +
-      `<span>${LABELS[t] || t}</span><span class="count">${counts[t] || 0}</span>`;
-    row.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (filterState.types.has(t)) filterState.types.delete(t); else filterState.types.add(t);
-      row.classList.toggle('disabled', !filterState.types.has(t));
-      hapticImpact('light');
-      applyFilters();
-    });
-    container.appendChild(row);
-  });
-}
-
-function applyFilters() {
-  const q = (filterState.search || '').trim().toLowerCase();
-  drones.forEach(d => {
-    if (!d) return;
-    const typeOk = filterState.types.has(d.type);
-    const label = (d.marker?.getPopup()?.getContent() || '').toLowerCase();
-    const searchOk = !q || label.includes(q);
-    const visible = typeOk && searchOk;
-    const wasVisible = d._visible !== false;
-    if (visible === wasVisible) return;
-    d._visible = visible;
-    if (visible) {
-      if (iconCluster) iconCluster.addLayer(d.marker); else d.marker.addTo(map);
-      [d.shadow, d.line, d.courseLine, d.zoneLayer, d.rszoLabel].forEach(l => { if (l) map.addLayer(l); });
-    } else {
-      if (iconCluster) iconCluster.removeLayer(d.marker); else map.removeLayer(d.marker);
-      [d.shadow, d.line, d.courseLine, d.zoneLayer, d.rszoLabel].forEach(l => { if (l) map.removeLayer(l); });
-    }
-  });
-}
-
-/* ===== Haptic feedback (Telegram Mini App) ===== */
-function hapticImpact(style) {
-  try { window.tgWebApp?.HapticFeedback?.impactOccurred(style || 'medium'); } catch (e) {}
-}
-function hapticNotify(type) {
-  try { window.tgWebApp?.HapticFeedback?.notificationOccurred(type || 'success'); } catch (e) {}
-}
-
-/* ===== Док підкладок ===== */
-function buildBasemapSwitcher() {
-  const sw = document.getElementById('basemapSwitcher');
-  if (!sw) return;
-  sw.innerHTML = '';
-
-  const fab = document.createElement('button');
-  fab.type = 'button'; fab.className = 'bm-fab'; fab.textContent = '🗺'; fab.title = 'Підкладка карти';
-  sw.appendChild(fab);
-
-  const panel = document.createElement('div');
-  panel.className = 'bm-panel';
-  sw.appendChild(panel);
-
-  const title = document.createElement('div');
-  title.className = 'bm-title'; title.textContent = 'Підкладка карти';
-  panel.appendChild(title);
-
-  const list = document.createElement('div');
-  list.className = 'bm-list';
-  panel.appendChild(list);
-
-  BASE_LAYERS.forEach((meta, idx) => {
-    const btn = document.createElement('button');
-    btn.className = 'bm-item'; btn.dataset.idx = String(idx);
-    btn.innerHTML = `<div class="bm-name">${meta.name}</div><div class="bm-sub">${meta.isDark ? 'темна' : 'світла'}</div>`;
-    if (idx === 0) btn.classList.add('active');
-    list.appendChild(btn);
-  });
-
-  list.addEventListener('click', e => {
-    const btn = e.target.closest('.bm-item');
-    if (!btn) return;
-    const idx = parseInt(btn.dataset.idx, 10);
-    const meta = BASE_LAYERS[idx];
-    if (!meta || meta.layer === currentBaseLayer) return;
-    if (currentBaseLayer && map.hasLayer(currentBaseLayer)) map.removeLayer(currentBaseLayer);
-    meta.layer.addTo(map);
-    currentBaseLayer = meta.layer; currentBaseIdx = idx;
-    list.querySelectorAll('.bm-item').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentBaseMeta = { name: meta.name, isDark: meta.isDark };
-    document.body.classList.toggle('dark-map', meta.isDark);
-    recolorLabels(); recolorRoutes(); refreshIconsByZoom(); redrawAllSectors();
-  });
-}
-
-/* ===== Перевірка статусу трансляції ===== */
-let streamActive = true;
-const ADMIN_BASE = location.origin || '';
-
-async function checkStreamStatus() {
-  try {
-    const resp = await fetch(ADMIN_BASE.replace(/\/$/, '') + '/api/stream/status', { cache: 'no-store' });
-    if (!resp.ok) return; // при ошибке не блокируем
-    const data = await resp.json();
-    streamActive = !!data.active;
-  } catch (e) {
-    // при ошибке сети — не блокируем, показываем карту
-    streamActive = true;
-  }
-  const overlay = document.getElementById('streamOffline');
-  if (overlay) overlay.classList.toggle('visible', !streamActive);
-}
-
-/* ===== Запуск ===== */
-(async () => {
-  await checkStreamStatus();
-  if (streamActive) {
-    await loadIconsFromAdmin();
-    initApp();
-  }
-  // Перевіряємо статус кожні 15 секунд
-  setInterval(async () => {
-    const wasBefore = streamActive;
-    await checkStreamStatus();
-    // Якщо трансляцію щойно увімкнули — ініціалізуємо карту
-    if (streamActive && !wasBefore) {
-      await loadIconsFromAdmin();
-      initApp();
-    }
-  }, 15000);
+(function initTelegramWebApp(){
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if(!tg) return;
+  tg.ready(); tg.expand();
+  try{
+    document.documentElement.style.setProperty('--bg', tg.themeParams.bg_color ? tg.themeParams.bg_color : '#05080a');
+  }catch(e){}
 })();
 </script>
-
-<!-- ===== CHANGELOG BUTTON + MODAL ===== -->
-<a id="donateBtn" href="https://send.monobank.ua/jar/7nLEDMfuNF" target="_blank" rel="noopener" title="Підтримати проєкт">
-  <span class="donate-icon">🫙</span>
-  <span class="donate-label">Донат</span>
-</a>
-<a id="donateToast" href="https://send.monobank.ua/jar/7nLEDMfuNF" target="_blank" rel="noopener">
-  <span class="dt-icon">❤️</span>
-  <span class="dt-text">Підтримайте проєкт</span>
-  <span class="dt-close" onclick="event.preventDefault();event.stopPropagation();closeDonateToast()">✕</span>
-</a>
-
-<div id="viewerCounter"><span class="vc-dot"></span><span class="vc-num">—</span><span class="vc-label">онлайн</span></div>
-
-<button id="changelogBtn" title="Оновлення проєкту">🔄</button>
-
-<div id="changelogOverlay">
-  <div id="changelogModal">
-    <div class="cl-header">
-      <h2>📋 Журнал оновлень</h2>
-      <button class="cl-close" id="clClose">&times;</button>
-    </div>
-    <div class="cl-body">
-
-      <div class="cl-group">
-        <div class="cl-group-title">🗺️ Карта</div>
-        <div class="cl-item"><div class="cl-item-title">Інтерактивна карта загроз</div><div class="cl-item-desc">Повноцінна онлайн-карта з центром на Харкові для відстеження повітряних загроз у реальному часі</div></div>
-        <div class="cl-item"><div class="cl-item-title">Вибір підкладки</div><div class="cl-item-desc">6 варіантів відображення карти — супутникова, дорожня, рельєфна та інші, з можливістю перемикання</div></div>
-        <div class="cl-item"><div class="cl-item-title">Стилізований інтерфейс</div><div class="cl-item-desc">Сучасний тактичний дизайн з темною темою, зручний для використання вдень та вночі</div></div>
-      </div>
-
-      <div class="cl-group">
-        <div class="cl-group-title">🎯 Відстеження загроз</div>
-        <div class="cl-item"><div class="cl-item-title">11 типів цілей</div><div class="cl-item-desc">Шахеди, ракети, КАБи, РСЗО, балістика, розвідувальні дрони та інші — кожен тип із власною іконкою</div></div>
-        <div class="cl-item"><div class="cl-item-title">Позначки на карті</div><div class="cl-item-desc">Кожна ціль відображається іконкою з напрямком руху та підсвіткою для кращої видимості</div></div>
-        <div class="cl-item"><div class="cl-item-title">Зручне масштабування</div><div class="cl-item-desc">Іконки автоматично змінюють розмір при наближенні та віддаленні карти</div></div>
-      </div>
-
-      <div class="cl-group">
-        <div class="cl-group-title">📍 Маршрути</div>
-        <div class="cl-item"><div class="cl-item-title">Відображення маршруту</div><div class="cl-item-desc">Видно шлях, яким рухалася ціль — це допомагає зрозуміти напрямок загрози</div></div>
-        <div class="cl-item"><div class="cl-item-title">Прогноз руху</div><div class="cl-item-desc">Червона пунктирна лінія показує ймовірний подальший напрямок цілі</div></div>
-        <div class="cl-item"><div class="cl-item-title">Вектор курсу</div><div class="cl-item-desc">Зелена лінія вказує загальний напрямок руху на великій відстані</div></div>
-      </div>
-
-      <div class="cl-group">
-        <div class="cl-group-title">🎖️ Сектори загрози РСЗО</div>
-        <div class="cl-item"><div class="cl-item-title">Зона ураження</div><div class="cl-item-desc">Для РСЗО відображається сектор можливого ураження з анімацією</div></div>
-        <div class="cl-item"><div class="cl-item-title">Напрямок обстрілу</div><div class="cl-item-desc">Оператор задає напрямок — на карті з'являється зона потенційної загрози</div></div>
-      </div>
-
-      <div class="cl-group">
-        <div class="cl-group-title">🖥️ Інформаційна панель</div>
-        <div class="cl-item"><div class="cl-item-title">Статус-бар</div><div class="cl-item-desc">Зверху карти завжди видно поточний час та кількість активних цілей</div></div>
-        <div class="cl-item"><div class="cl-item-title">Вибір вигляду карти</div><div class="cl-item-desc">Зручна кнопка для швидкої зміни типу підкладки карти</div></div>
-      </div>
-
-      <div class="cl-group">
-        <div class="cl-group-title">💧 Захист контенту</div>
-        <div class="cl-item"><div class="cl-item-title">Водяний знак</div><div class="cl-item-desc">На всіх знімках з карти автоматично з'являється водяний знак @SkyKh_info</div></div>
-        <div class="cl-item"><div class="cl-item-title">Гнучке налаштування</div><div class="cl-item-desc">Зовнішній вигляд водяного знака оновлюється автоматично без перезавантаження</div></div>
-      </div>
-
-      <div class="cl-group">
-        <div class="cl-group-title">📡 Трансляція</div>
-        <div class="cl-item"><div class="cl-item-title">Карта в реальному часі</div><div class="cl-item-desc">Дані на карті оновлюються автоматично кожні кілька секунд — ви бачите актуальну ситуацію</div></div>
-        <div class="cl-item"><div class="cl-item-title">Автоматичне увімкнення</div><div class="cl-item-desc">Коли оператор запускає трансляцію — карта з'являється автоматично, без перезавантаження сторінки</div></div>
-        <div class="cl-item"><div class="cl-item-title">Повідомлення про статус</div><div class="cl-item-desc">Коли трансляція вимкнена — на екрані з'являється відповідне повідомлення</div></div>
-      </div>
-
-      <div class="cl-group">
-        <div class="cl-group-title">🤖 Telegram-бот</div>
-        <div class="cl-item"><div class="cl-item-title">Карта прямо в Telegram</div><div class="cl-item-desc">Натисніть кнопку в боті — і карта відкриється прямо у месенджері, без браузера</div></div>
-        <div class="cl-item"><div class="cl-item-title">Перевірка підписки</div><div class="cl-item-desc">Для перегляду карти потрібно бути підписником каналу @skykh_info</div></div>
-        <div class="cl-item"><div class="cl-item-title">Персональні сповіщення</div><div class="cl-item-desc">Команда /notify — отримуйте особисте повідомлення щоразу, коли починається або завершується трансляція</div></div>
-        <div class="cl-item"><div class="cl-item-title">Повідомлення від адміністрації</div><div class="cl-item-desc">Адміністратори можуть надсилати важливі повідомлення всім підписникам бота</div></div>
-      </div>
-
-      <div class="cl-group">
-        <div class="cl-group-title">🔒 Безпека</div>
-        <div class="cl-item"><div class="cl-item-title">Захищений доступ</div><div class="cl-item-desc">Вхід на карту захищений паролем — дані перевіряються на сервері</div></div>
-        <div class="cl-item"><div class="cl-item-title">Захист від зловмисників</div><div class="cl-item-desc">Обмеження кількості спроб входу, шифрування з'єднання та автоматичне блокування підозрілої активності</div></div>
-      </div>
-
-      <div class="cl-group">
-        <div class="cl-group-title">📋 Інше</div>
-        <div class="cl-item"><div class="cl-item-title">Журнал оновлень</div><div class="cl-item-desc">Кнопка 🔄 на карті — завжди можна переглянути, що нового з'явилося у проєкті</div></div>
-        <div class="cl-item"><div class="cl-item-title">Панель адміністрування</div><div class="cl-item-desc">Усі налаштування карти, бота та трансляцій керуються через зручну адмін-панель з підтримкою телефонів та планшетів</div></div>
-        <div class="cl-item"><div class="cl-item-title">Моніторинг та сповіщення</div><div class="cl-item-desc">Адміністратори отримують миттєві Telegram-сповіщення якщо щось пішло не так з роботою сервісу</div></div>
-        <div class="cl-item"><div class="cl-item-title">Статистика та графіки</div><div class="cl-item-desc">Детальні графіки активності проєкту — кількість трансляцій, активних користувачів та інших подій</div></div>
-      </div>
-
-      <div class="cl-group">
-        <div class="cl-group-title">🛠️ Оновлення 14.02.2026</div>
-        <div class="cl-item"><div class="cl-item-title">Сповіщення про нові цілі</div><div class="cl-item-desc">Коли ви зумовані на частину карти — зверху з'явиться повідомлення про нові цілі за межами екрану з їх типами та кількістю</div></div>
-        <div class="cl-item"><div class="cl-item-title">Клікабельний лічильник цілей</div><div class="cl-item-desc">Натисніть на статус-бар зверху карти — камера плавно відзумиться і покаже всі активні цілі</div></div>
-        <div class="cl-item"><div class="cl-item-title">Система зворотного зв'язку</div><div class="cl-item-desc">Нова команда /feedback у боті чату — пропозиції, скарги та баг-репорти надходять прямо в адмін-панель</div></div>
-        <div class="cl-item"><div class="cl-item-title">Виправлення білої смуги</div><div class="cl-item-desc">На мобільних пристроях більше не з'являється біла смуга внизу карти — фон адаптовано під всі розміри екрану</div></div>
-        <div class="cl-item"><div class="cl-item-title">Нагадування про донат</div><div class="cl-item-desc">Ненав'язливе спливаюче повідомлення з проханням підтримати проєкт. Частота та текст налаштовуються в адмін-панелі</div></div>
-      </div>
-
-      <div class="cl-version">Sky Kharkiv • v2.2 • 2026</div>
-
-    </div>
-  </div>
-</div>
-
-<script>
-/* ===== DONATE TOAST ===== */
-(function(){
-  let _dtCfg = null, _dtTimer = null, _dtHideTimer = null, _dtDismissed = false;
-
-  async function loadDonateToastCfg() {
-    try {
-      const r = await fetch('/api/donate-toast');
-      if (r.ok) _dtCfg = await r.json();
-    } catch(e) {}
-  }
-
-  function showDonateToast() {
-    if (_dtDismissed || !_dtCfg || !_dtCfg.enabled) return;
-    const el = document.getElementById('donateToast');
-    if (!el) return;
-    const txt = el.querySelector('.dt-text');
-    if (txt && _dtCfg.text) txt.textContent = _dtCfg.text;
-    if (_dtCfg.url) el.href = _dtCfg.url;
-    el.classList.add('show');
-    if (_dtHideTimer) clearTimeout(_dtHideTimer);
-    _dtHideTimer = setTimeout(() => { el.classList.remove('show'); }, (_dtCfg.duration_seconds || 5) * 1000);
-  }
-
-  window.closeDonateToast = function() {
-    const el = document.getElementById('donateToast');
-    if (el) el.classList.remove('show');
-    _dtDismissed = true;
-    if (_dtTimer) { clearInterval(_dtTimer); _dtTimer = null; }
-  };
-
-  // Poll for admin-triggered toast (test button)
-  let _lastTriggerTs = 0;
-  async function pollTrigger() {
-    try {
-      const r = await fetch('/api/donate-toast/trigger');
-      if (r.ok) {
-        const d = await r.json();
-        if (d.ts && d.ts > _lastTriggerTs && _lastTriggerTs > 0) {
-          // Force show even if dismissed
-          _dtDismissed = false;
-          if (_dtCfg) showDonateToast();
-        }
-        _lastTriggerTs = d.ts || 0;
-      }
-    } catch(e) {}
-  }
-
-  async function init() {
-    await loadDonateToastCfg();
-    // Start trigger polling regardless of enabled state (for admin testing)
-    pollTrigger();
-    setInterval(pollTrigger, 5000);
-    if (!_dtCfg || !_dtCfg.enabled) return;
-    const interval = (_dtCfg.interval_seconds || 120) * 1000;
-    setTimeout(() => {
-      showDonateToast();
-      _dtTimer = setInterval(showDonateToast, interval);
-    }, Math.min(interval / 2, 60000));
-  }
-
-  setTimeout(init, 3000);
-})();
-
-/* ===== VIEWER COUNTER ===== */
-(function(){
-  const VID_KEY = 'skykh_viewer_id';
-  function getVid(){
-    let v = sessionStorage.getItem(VID_KEY);
-    if(!v){ v = Math.random().toString(36).slice(2)+Date.now().toString(36); sessionStorage.setItem(VID_KEY,v); }
-    return v;
-  }
-  const vid = getVid();
-
-  async function heartbeat(){
-    try{
-      const r = await fetch('/api/viewers/heartbeat',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({vid})
-      });
-      if(r.ok){
-        const d = await r.json();
-        updateCounterUI(d.count);
-      }
-    }catch(e){}
-  }
-
-  function updateCounterUI(count){
-    const el = document.getElementById('viewerCounter');
-    if(!el) return;
-    const num = el.querySelector('.vc-num');
-    if(num) num.textContent = count;
-  }
-
-  heartbeat();
-  setInterval(heartbeat, 15000);
-})();
-
-/* ===== CHANGELOG ===== */
-(function(){
-  const btn=document.getElementById('changelogBtn'),ov=document.getElementById('changelogOverlay'),cl=document.getElementById('clClose');
-  if(!btn||!ov)return;
-  const sync = () => { window.syncMiniAppBackButton?.(); };
-  btn.addEventListener('click',()=>{ov.classList.add('open'); hapticImpact?.('light'); sync();});
-  cl.addEventListener('click',()=>{ov.classList.remove('open'); sync();});
-  ov.addEventListener('click',e=>{if(e.target===ov){ov.classList.remove('open'); sync();}});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ov.classList.contains('open')){ov.classList.remove('open'); sync();}});
-})();
-</script>
-
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
