@@ -56,7 +56,7 @@ jobs:
           FOREVER: '1'
           FOREVER_MAX_MINUTES: '295'   # трохи менше за timeout-minutes джоби
           AUTO_GIT_COMMIT: '1'         # коміт зсередини процесу кожні COMMIT_INTERVAL_SEC
-          COMMIT_INTERVAL_SEC: '300'   # раз на 5 хвилин під час 5-годинного вікна
+          COMMIT_INTERVAL_SEC: '30'   # раз на 5 хвилин під час 5-годинного вікна
         run: python parser.py
 
       - name: Final commit (страховка, якщо останній автокоміт не встиг)
