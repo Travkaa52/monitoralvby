@@ -1,5 +1,5 @@
 """
-AI-класифікатор повідомлень для Monitor Kharkiv.
+AI-класифікатор повідомлень для Monitor.
 
 Замінює/доповнює прості keyword-збіги: віддає повідомлення каналу в Gemini
 і отримує назад структурований список цілей (тип, населений пункт, напрямок руху).
@@ -10,23 +10,31 @@ AI-класифікатор повідомлень для Monitor Kharkiv.
 """
 import os
 import json
+import time
 import requests
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash')
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
-ALLOWED_TYPES = ["recon", "kab", "aircraft", "mrls", "drone", "missile"]
+# Канонічний список типів — має 1-в-1 збігатись з ключами types.json і з
+# назвами іконок/лейблів у index.html, інакше ціль намалюється з "поламаною" іконкою.
+ALLOWED_TYPES = ["recon", "drone", "fpw", "lancet", "molniya", "kab", "missile", "mrls", "aircraft"]
 
 SYSTEM_PROMPT = """Ти аналізуєш повідомлення з телеграм-каналів моніторингу повітряних загроз
-Харківської області України. Виділи з тексту всі згадані цілі (загрози).
+в Україні (укр. та рос. мовою). Виділи з тексту всі згадані цілі (загрози).
 
 Для кожної цілі визнач:
-- type: один з ["recon", "kab", "aircraft", "mrls", "drone", "missile"]
-  (recon = розвідувальний БПЛА типу Zala/Орлан/SuperCam; kab = керована авіабомба;
-   aircraft = літак; mrls = реактивна/ствольна артилерія; drone = ударний БПЛА типу Shahed;
-   missile = ракета, включно з балістикою)
-- location: назва населеного пункту Харківської області, як згадано в тексті (без обробки)
+- type: один з ["recon", "drone", "fpw", "lancet", "molniya", "kab", "missile", "mrls", "aircraft"]
+  (recon = розвідувальний БПЛА типу Zala/Орлан/SuperCam;
+   drone = ударний БПЛА типу Shahed/Geran/Гербера;
+   fpw = FPV-дрон/камікадзе;
+   lancet = БПЛА "Ланцет"; molniya = БПЛА "Молнія";
+   kab = керована авіабомба (КАБ/ФАБ/УМПК);
+   missile = ракета, включно з балістичною і крилатою;
+   mrls = реактивна/ствольна артилерія, обстріл;
+   aircraft = пілотований літак)
+- location: назва населеного пункту, як згадано в тексті (без обробки, мовою оригіналу)
 - direction_text: короткий опис напрямку руху, якщо згадується (наприклад "на Харків",
   "у бік Чугуєва", "зі сходу"), інакше null
 - bearing_degrees: якщо напрямок можна оцінити географічно — азимут 0-360 (0=північ,
@@ -59,13 +67,14 @@ RESPONSE_SCHEMA = {
 }
 
 
-def analyze_message(text: str, timeout: int = 15) -> list[dict]:
+def analyze_message(text: str, timeout: int = 15, retries: int = 2) -> list[dict]:
     """
     Повертає список цілей у форматі:
     [{"type": "drone", "location": "Чугуїв", "direction_text": "на Харків",
       "bearing_degrees": 270, "confidence": 0.9}, ...]
-    Порожній список, якщо цілей немає або AI недоступний (виклик main.py має
-    зробити fallback на keyword-парсинг у цьому випадку — дивись has_error).
+
+    Піднімає виняток, якщо ключа немає або всі спроби до Gemini впали —
+    у цьому випадку parser.py сам відкотиться на keyword-парсинг.
     """
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY не задано")
@@ -79,27 +88,36 @@ def analyze_message(text: str, timeout: int = 15) -> list[dict]:
             "temperature": 0.1
         }
     }
-    headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": GEMINI_API_KEY
-    }
-    r = requests.post(GEMINI_URL, headers=headers, json=payload, timeout=timeout)
-    r.raise_for_status()
-    data = r.json()
+    headers = {"Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY}
 
-    raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
-    parsed = json.loads(raw_text)
-    targets = parsed.get("targets", [])
+    last_err = None
+    for attempt in range(1, retries + 2):
+        try:
+            r = requests.post(GEMINI_URL, headers=headers, json=payload, timeout=timeout)
+            if r.status_code == 429 or r.status_code >= 500:
+                # тимчасова помилка/ліміт — варто повторити
+                raise requests.HTTPError(f"{r.status_code}: {r.text[:150]}")
+            r.raise_for_status()
+            data = r.json()
 
-    # Санітизація на випадок, якщо модель трохи відхилиться від схеми
-    clean = []
-    for t in targets:
-        if t.get("type") in ALLOWED_TYPES and t.get("location"):
-            clean.append({
-                "type": t["type"],
-                "location": str(t["location"]).strip(),
-                "direction_text": t.get("direction_text"),
-                "bearing_degrees": t.get("bearing_degrees"),
-                "confidence": float(t.get("confidence", 0.5))
-            })
-    return clean
+            raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+            parsed = json.loads(raw_text)
+            targets = parsed.get("targets", [])
+
+            clean = []
+            for t in targets:
+                if t.get("type") in ALLOWED_TYPES and t.get("location"):
+                    clean.append({
+                        "type": t["type"],
+                        "location": str(t["location"]).strip(),
+                        "direction_text": t.get("direction_text"),
+                        "bearing_degrees": t.get("bearing_degrees"),
+                        "confidence": float(t.get("confidence", 0.5))
+                    })
+            return clean
+        except Exception as e:
+            last_err = e
+            if attempt <= retries:
+                time.sleep(min(2 ** attempt, 6))
+                continue
+            raise last_err
