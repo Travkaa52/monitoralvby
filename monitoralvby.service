@@ -1,0 +1,19 @@
+[Unit]
+Description=Monitor Kharkiv parser (24/7, user-account API_ID/API_HASH)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Заміни на свій шлях до проєкту:
+WorkingDirectory=/opt/monitoralvby
+EnvironmentFile=/opt/monitoralvby/.env
+Environment=FOREVER=1
+ExecStart=/usr/bin/python3 /opt/monitoralvby/parser.py
+Restart=always
+RestartSec=15
+StandardOutput=append:/var/log/monitoralvby.log
+StandardError=append:/var/log/monitoralvby.log
+
+[Install]
+WantedBy=multi-user.target

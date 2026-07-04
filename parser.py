@@ -1,12 +1,14 @@
 import asyncio
 import json
 import os
+import time
 import difflib
 import logging
 from datetime import datetime, timedelta, timezone
 
 import requests
-from telethon import TelegramClient
+from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 from telethon.errors import ChannelPrivateError, UsernameNotOccupiedError
 
 import ai_classifier
@@ -22,6 +24,35 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 API_ID = int(os.environ['API_ID'])
 API_HASH = os.environ['API_HASH']
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
+
+# Рядок сесії звичайного (не бот) акаунта — потрібен лише для 24/7-режиму
+# (main(): FOREVER=1). Отримати його можна одноразово через generate_session.py.
+# Якщо не задано — у 24/7-режимі буде використано локальний файл сесії
+# user_session.session (створюється при першому інтерактивному вході).
+SESSION_STRING = os.environ.get('SESSION_STRING')
+
+# Скільки секунд слухати в один прохід у застарілому "бот"-режимі (GitHub Actions).
+LISTEN_SECONDS = int(os.environ.get('LISTEN_SECONDS', '280'))
+# Пауза перед переприєднанням у 24/7-режимі після обриву з'єднання.
+RECONNECT_DELAY_SEC = int(os.environ.get('RECONNECT_DELAY_SEC', '15'))
+
+# Плановий ліміт часу роботи одного запуску 24/7-режиму (хвилини). Потрібен,
+# коли процес живе всередині GitHub Actions job — джоба сама обмежена (макс.
+# 360 хв на GitHub-раннерах), тож ставимо трохи менше і даємо процесу самому
+# акуратно завершитись, а не обриватись по таймауту раннера. 0 = без ліміту
+# (для звичайного сервера/VPS, де процес і так живе вічно).
+FOREVER_MAX_MINUTES = int(os.environ.get('FOREVER_MAX_MINUTES', '0'))
+
+# Автоматичний git commit+push просто зсередини процесу (для GitHub Actions:
+# щоб дані зберігались кожні кілька хвилин, а не губились, якщо джоба впаде
+# посеред 5-годинного вікна). Вимкнено за замовчуванням — вмикати лише коли
+# процес реально запущений всередині чекнутого git-репозиторію з правами push.
+AUTO_GIT_COMMIT = os.environ.get('AUTO_GIT_COMMIT') == '1'
+COMMIT_INTERVAL_SEC = int(os.environ.get('COMMIT_INTERVAL_SEC', '300'))
+
+# Файл, куди пишеться КОЖНЕ побачене повідомлення (не лише ті, що стали
+# цілями) — щоб мати повний журнал за весь час роботи процесу.
+MESSAGES_LOG_PATH = os.path.join(BASE_DIR, 'messages_log.jsonl')
 
 SOURCE_CHANNELS = [c.strip().lstrip('@') for c in os.environ.get('SOURCE_CHANNELS', '').split(',') if c.strip()]
 if not SOURCE_CHANNELS:
@@ -71,6 +102,46 @@ DIRECTION_WORDS = {
 }
 
 _stats = {"messages_seen": 0, "targets_created": 0, "ai_fallbacks": 0}
+
+
+def log_raw_message(source_chat: str, msg_id: int, dt: datetime, text: str):
+    """Пише КОЖНЕ побачене повідомлення у messages_log.jsonl (append), незалежно
+    від того, чи розпізнана в ньому ціль. Це журнал "все, що бачив парсер"."""
+    try:
+        with open(MESSAGES_LOG_PATH, 'a', encoding='utf-8') as f:
+            f.write(json.dumps({
+                "time": dt.isoformat(),
+                "source": source_chat,
+                "msg_id": msg_id,
+                "text": text
+            }, ensure_ascii=False) + "\n")
+    except Exception as e:
+        log.warning(f"Не вдалося дописати у messages_log.jsonl: {e}")
+
+
+def _git_commit_and_push(message: str = "Auto update targets/messages [skip ci]"):
+    """Викликається лише коли AUTO_GIT_COMMIT=1: коммітить поточний стан
+    (targets.json, parser_state.json, messages_log.jsonl) прямо з процесу —
+    щоб дані не губились, якщо джоба GitHub Actions впаде посеред довгого вікна."""
+    import subprocess
+    try:
+        subprocess.run(['git', 'add', 'targets.json', 'parser_state.json', 'messages_log.jsonl'],
+                       cwd=BASE_DIR, check=True)
+        diff = subprocess.run(['git', 'diff', '--cached', '--quiet'], cwd=BASE_DIR)
+        if diff.returncode == 0:
+            return  # нема змін — нічого комітити
+        subprocess.run(['git', 'commit', '-m', message], cwd=BASE_DIR, check=True)
+        subprocess.run(['git', 'pull', '--rebase', '--autostash'], cwd=BASE_DIR, check=True)
+        subprocess.run(['git', 'push'], cwd=BASE_DIR, check=True)
+        log.info("💾 Автокоміт: зміни запушено в git")
+    except Exception as e:
+        log.warning(f"⚠️ Автокоміт не вдався: {e}")
+
+
+async def _periodic_commit_loop():
+    while True:
+        await asyncio.sleep(COMMIT_INTERVAL_SEC)
+        _git_commit_and_push()
 
 
 def notify_admins(text: str):
@@ -256,6 +327,150 @@ def process_message(text: str, source_chat: str, msg_id: int, now: datetime, tar
         log.info(f"🎯 [{source_chat}] {detected_type.upper()} → {target['label']}{dir_info}")
 
 
+async def _listen_forever_once(deadline: datetime = None):
+    """Один цикл 24/7-режиму: підключення user-акаунтом (API_ID/API_HASH),
+    доганяючий прохід по пропущеній історії, потім живе прослуховування.
+    Не потребує BOT_TOKEN і не потребує, щоб акаунт був адміністратором
+    каналу — досить, щоб канал був публічним або акаунт складався у ньому
+    учасником. Якщо задано `deadline` — процес акуратно від'єднається сам,
+    щойно час вийде (для роботи всередині GitHub Actions job з лімітом часу)."""
+    session = StringSession(SESSION_STRING) if SESSION_STRING else os.path.join(BASE_DIR, 'user_session')
+    client = TelegramClient(session, API_ID, API_HASH)
+
+    await client.start()  # якщо нема SESSION_STRING — попросить номер телефону й код лише один раз
+    me = await client.get_me()
+    log.info(f"🔗 Підключено як {me.first_name} (id={me.id}) — user-сесія, режим 24/7")
+    if not SESSION_STRING:
+        log.info("ℹ️ SESSION_STRING не задано — сесія збережена локально у user_session.session")
+
+    resolved = {}
+    channel_by_entity_id = {}
+    for channel in SOURCE_CHANNELS:
+        try:
+            entity = await client.get_entity(channel)
+            resolved[channel] = entity
+            channel_by_entity_id[entity.id] = channel
+        except (ChannelPrivateError, UsernameNotOccupiedError) as e:
+            log.error(f"❌ Канал {channel} недоступний: {e}")
+            notify_admins(f"канал {channel} недоступний: {e}")
+        except Exception as e:
+            log.error(f"❌ Не вдалося резолвнути канал {channel}: {e}")
+            notify_admins(f"не вдалося резолвнути канал {channel}: {e}")
+
+    if not resolved:
+        raise RuntimeError("Жоден канал не резолвнувся — перевір SOURCE_CHANNELS і доступ акаунта до них")
+
+    # --- 1) Доганяючий прохід: підтягуємо все, що прийшло з моменту минулого запуску ---
+    state = load_state()
+    now = datetime.now()
+    now_utc = datetime.now(timezone.utc)
+    max_age = timedelta(minutes=MAX_MESSAGE_AGE_MIN)
+    targets = prune_expired(load_targets(), now)
+
+    for channel, entity in resolved.items():
+        last_id = int(state.get(channel, 0))
+        new_last_id = last_id
+        fetched = 0
+        try:
+            async for message in client.iter_messages(
+                entity, min_id=last_id, reverse=True, limit=MAX_CATCHUP_MESSAGES
+            ):
+                fetched += 1
+                new_last_id = max(new_last_id, message.id)
+                if not message.raw_text:
+                    continue
+                source_chat = getattr(entity, 'username', None) or str(entity.id)
+                log_raw_message(source_chat, message.id, message.date or now, message.raw_text)
+                if message.date and (now_utc - message.date) > max_age:
+                    continue
+                process_message(message.raw_text, source_chat, message.id, now, targets)
+            state[channel] = new_last_id
+            if fetched:
+                log.info(f"📚 {channel}: доганяючий прохід — {fetched} повідомлень (last_id={new_last_id})")
+        except Exception as e:
+            log.error(f"❌ Помилка доганяючого проходу для {channel}: {e}")
+
+    save_targets(targets)
+    save_state(state)
+    log.info("✅ Доганяючий прохід завершено, переходжу у режим живого прослуховування")
+
+    # --- 2) Живе прослуховування — кожне повідомлення пишеться у messages_log.jsonl ---
+    @client.on(events.NewMessage(chats=list(resolved.values())))
+    async def handler(event):
+        text = event.raw_text
+        if not text:
+            return
+        entity_id = event.chat_id
+        channel = channel_by_entity_id.get(entity_id) or channel_by_entity_id.get(abs(entity_id))
+        source_chat = channel or getattr(event.chat, 'username', None) or str(entity_id)
+
+        now_ = datetime.now()
+        log_raw_message(source_chat, event.id, now_, text)
+
+        live_targets = prune_expired(load_targets(), now_)
+        process_message(text, source_chat, event.id, now_, live_targets)
+        save_targets(live_targets)
+
+        if channel:
+            st = load_state()
+            st[channel] = max(int(st.get(channel, 0)), event.id)
+            save_state(st)
+
+    if AUTO_GIT_COMMIT:
+        asyncio.create_task(_periodic_commit_loop())
+        log.info(f"💾 Автокоміт увімкнено: кожні {COMMIT_INTERVAL_SEC}с")
+
+    if deadline:
+        async def _stop_at_deadline():
+            remaining = (deadline - datetime.now()).total_seconds()
+            if remaining > 0:
+                await asyncio.sleep(remaining)
+            log.info("⏰ Плановий час цього прогону вичерпано — акуратно завершую з'єднання")
+            await client.disconnect()
+        asyncio.create_task(_stop_at_deadline())
+
+    log.info(f"👂 Слухаю {len(resolved)} каналів у реальному часі...")
+    await client.run_until_disconnected()
+
+    if AUTO_GIT_COMMIT:
+        _git_commit_and_push("Final commit before scheduled restart [skip ci]")
+
+
+def run_forever():
+    """Точка входу для постійного процесу. Два сценарії використання:
+    1) Окремий сервер/VPS/systemd — FOREVER_MAX_MINUTES=0 (за замовч.),
+       процес живе вічно й сам перепідключається при обривах.
+    2) GitHub Actions з розкладом (наприклад, кожні 5 годин) — задай
+       FOREVER_MAX_MINUTES (трохи менше вікна крону) й AUTO_GIT_COMMIT=1:
+       джоба сама завершиться вчасно, а не обірветься по таймауту раннера,
+       і при цьому періодично комітитиме прогрес усередині вікна."""
+    log.info("🤖 Monitor Kharkiv — постійний режим, user-акаунт API_ID/API_HASH")
+    log.info(f"📡 Канали: {', '.join(SOURCE_CHANNELS)}")
+    log.info(f"🧠 AI-класифікація: {'увімкнена (Gemini)' if USE_AI else 'вимкнена — keyword-фолбек'}")
+
+    run_deadline = None
+    if FOREVER_MAX_MINUTES > 0:
+        run_deadline = datetime.now() + timedelta(minutes=FOREVER_MAX_MINUTES)
+        log.info(f"⏰ Плановий ліміт цього запуску: {FOREVER_MAX_MINUTES} хв "
+                 f"(до {run_deadline.strftime('%H:%M:%S')})")
+
+    while True:
+        try:
+            asyncio.run(_listen_forever_once(run_deadline))
+            log.info("✅ Прогін завершено штатно (плановий час вичерпано або з'єднання закрилось) — виходжу")
+            break
+        except KeyboardInterrupt:
+            log.info("⏹ Зупинено вручну (Ctrl+C)")
+            break
+        except Exception as e:
+            log.error(f"❌ Впало з'єднання/процес: {e}")
+            notify_admins(f"24/7-парсер впав: {e}")
+            if run_deadline and datetime.now() >= run_deadline:
+                log.info("⏰ Ліміт часу вже вичерпано — не перепідключаюсь, завершую процес")
+                break
+        time.sleep(RECONNECT_DELAY_SEC)
+
+
 async def run_once():
     now = datetime.now()
     now_utc = datetime.now(timezone.utc)
@@ -358,7 +573,11 @@ async def _run_live_listen(targets: list, now: datetime, now_utc: datetime, max_
 
 
 def main():
-    log.info("🤖 Monitor Kharkiv — одноразовий прохід парсера")
+    if os.environ.get('FOREVER') == '1':
+        run_forever()
+        return
+
+    log.info("🤖 Monitor Kharkiv — одноразовий прохід парсера (режим GitHub Actions)")
     log.info(f"📡 Канали: {', '.join(SOURCE_CHANNELS)}")
     log.info(f"🧠 AI-класифікація: {'увімкнена (Gemini)' if USE_AI else 'вимкнена — keyword-фолбек'}")
     log.info(f"🗺️ Населених пунктів у базі: {len(GEO_DATA)}")

@@ -21,3 +21,13 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+
+### Secrets / Telegram sessions ###
+.env
+*.session
+*.session-journal
+user_session.session
+parser_session.session
+bot_session.session
+__pycache__/
+*.pyc
