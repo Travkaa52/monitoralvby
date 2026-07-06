@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "monitor1654_129913_лозова",
+    "type": "drone",
+    "lat": 48.8893,
+    "lng": 36.3142,
+    "lon": 36.3142,
+    "label": "Лозова",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "23:01",
+    "created_at": "2026-07-06T23:01:11.712622",
+    "expire_at": "2026-07-06T23:41:11.712622"
+  }
+]
