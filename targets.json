@@ -1,16 +1,1 @@
-[
-  {
-    "id": "monitor1654_130076_слатине",
-    "type": "drone",
-    "lat": 50.2117,
-    "lng": 36.1517,
-    "lon": 36.1517,
-    "label": "Слатине",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "09:48",
-    "created_at": "2026-07-07T09:48:50.135344",
-    "expire_at": "2026-07-07T10:28:50.135344"
-  }
-]
+[]
