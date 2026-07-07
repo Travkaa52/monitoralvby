@@ -1,16 +1,1 @@
-[
-  {
-    "id": "monitor1654_130218_ізюм",
-    "type": "drone",
-    "lat": 49.2081,
-    "lng": 37.2725,
-    "lon": 37.2725,
-    "label": "Ізюм",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "18:36",
-    "created_at": "2026-07-07T18:36:36.730571",
-    "expire_at": "2026-07-07T19:16:36.730571"
-  }
-]
+[]
