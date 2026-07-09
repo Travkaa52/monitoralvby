@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_130664_близнюки",
-    "type": "drone",
-    "lat": 48.8531,
-    "lng": 36.5518,
-    "lon": 36.5518,
-    "label": "Близнюки",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "08:25",
-    "created_at": "2026-07-09T08:25:33.611500",
-    "expire_at": "2026-07-09T09:05:33.611500"
-  },
-  {
     "id": "monitor1654_130665_байрак",
     "type": "drone",
     "lat": 50.0438,
