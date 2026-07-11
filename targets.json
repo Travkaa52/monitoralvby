@@ -1,16 +1,1 @@
-[
-  {
-    "id": "monitor1654_131376_жуковського",
-    "type": "drone",
-    "lat": 50.0412,
-    "lng": 36.2847,
-    "lon": 36.2847,
-    "label": "Жуковського",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "16:20",
-    "created_at": "2026-07-11T16:20:42.186617",
-    "expire_at": "2026-07-11T17:00:42.186617"
-  }
-]
+[]
