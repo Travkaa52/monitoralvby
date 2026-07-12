@@ -1,33 +1,5 @@
 [
   {
-    "id": "monitor1654_131765_бнр",
-    "type": "kab",
-    "lat": 50.27361,
-    "lng": 36.392,
-    "lon": 36.392,
-    "label": "БНР",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": 270,
-    "time": "18:00",
-    "created_at": "2026-07-12T18:00:08.570552",
-    "expire_at": "2026-07-12T18:40:08.570552"
-  },
-  {
-    "id": "monitor1654_131767_вовчанськ",
-    "type": "kab",
-    "lat": 50.2868,
-    "lng": 36.9366,
-    "lon": 36.9366,
-    "label": "Вовчанськ",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "18:02",
-    "created_at": "2026-07-12T18:02:53.495746",
-    "expire_at": "2026-07-12T18:42:53.495746"
-  },
-  {
     "id": "monitor1654_131771_барвінкове",
     "type": "drone",
     "lat": 48.9035,
@@ -54,5 +26,19 @@
     "time": "18:27",
     "created_at": "2026-07-12T18:27:17.283816",
     "expire_at": "2026-07-12T19:07:17.283816"
+  },
+  {
+    "id": "monitor1654_131776_ізюм",
+    "type": "drone",
+    "lat": 49.2081,
+    "lng": 37.2725,
+    "lon": 37.2725,
+    "label": "Ізюм",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "18:44",
+    "created_at": "2026-07-12T18:44:57.944927",
+    "expire_at": "2026-07-12T19:24:57.944927"
   }
 ]
