@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_131776_ізюм",
-    "type": "drone",
-    "lat": 49.2081,
-    "lng": 37.2725,
-    "lon": 37.2725,
-    "label": "Ізюм",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "18:44",
-    "created_at": "2026-07-12T18:44:57.944927",
-    "expire_at": "2026-07-12T19:24:57.944927"
-  },
-  {
     "id": "monitor1654_131777_ізюм",
     "type": "kab",
     "lat": 49.2081,
