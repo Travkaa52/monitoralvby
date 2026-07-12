@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_131493_слатине",
-    "type": "drone",
-    "lat": 50.2117,
-    "lng": 36.1517,
-    "lon": 36.1517,
-    "label": "Слатине",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "00:04",
-    "created_at": "2026-07-12T00:04:53.729657",
-    "expire_at": "2026-07-12T00:44:53.729657"
-  },
-  {
     "id": "monitor1654_131512_вовчанськ",
     "type": "kab",
     "lat": 50.2868,
