@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "monitor1654_132003_байрак",
+    "type": "drone",
+    "lat": 50.0438,
+    "lng": 36.4372,
+    "lon": 36.4372,
+    "label": "Байрак",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "17:56",
+    "created_at": "2026-07-13T17:56:12.625699",
+    "expire_at": "2026-07-13T18:36:12.625699"
+  }
+]
