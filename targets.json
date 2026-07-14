@@ -1,16 +1,16 @@
 [
   {
-    "id": "monitor1654_132090_ізюм",
-    "type": "kab",
-    "lat": 49.2081,
-    "lng": 37.2725,
-    "lon": 37.2725,
-    "label": "Ізюм",
+    "id": "monitor1654_132093_бнр",
+    "type": "drone",
+    "lat": 50.27361,
+    "lng": 36.392,
+    "lon": 36.392,
+    "label": "БНР",
     "source": "monitor1654",
     "direction": null,
-    "bearing": 270,
-    "time": "01:00",
-    "created_at": "2026-07-14T01:00:44.898104",
-    "expire_at": "2026-07-14T01:40:44.898104"
+    "bearing": null,
+    "time": "02:02",
+    "created_at": "2026-07-14T02:02:03.142541",
+    "expire_at": "2026-07-14T02:42:03.142541"
   }
 ]
