@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "monitor1654_132650_вовчанськ",
+    "type": "missile",
+    "lat": 50.2868,
+    "lng": 36.9366,
+    "lon": 36.9366,
+    "label": "Вовчанськ",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "05:21",
+    "created_at": "2026-07-15T05:21:28.462474",
+    "expire_at": "2026-07-15T06:01:28.462474"
+  }
+]
