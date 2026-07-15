@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_132688_слатине",
-    "type": "drone",
-    "lat": 50.2117,
-    "lng": 36.1517,
-    "lon": 36.1517,
-    "label": "Слатине",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "08:26",
-    "created_at": "2026-07-15T08:26:01.166105",
-    "expire_at": "2026-07-15T09:06:01.166105"
-  },
-  {
     "id": "monitor1654_132700_близнюки",
     "type": "drone",
     "lat": 48.8531,
