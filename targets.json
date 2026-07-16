@@ -1,16 +1,1 @@
-[
-  {
-    "id": "monitor1654_133057_бнр",
-    "type": "drone",
-    "lat": 50.27361,
-    "lng": 36.392,
-    "lon": 36.392,
-    "label": "БНР",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "04:15",
-    "created_at": "2026-07-16T04:15:52.452444",
-    "expire_at": "2026-07-16T04:55:52.452444"
-  }
-]
+[]
