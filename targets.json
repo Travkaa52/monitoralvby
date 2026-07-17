@@ -1,16 +1,1 @@
-[
-  {
-    "id": "monitor1654_133553_цупівка",
-    "type": "kab",
-    "lat": 50.1614,
-    "lng": 36.1025,
-    "lon": 36.1025,
-    "label": "Цупівка",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "06:56",
-    "created_at": "2026-07-17T06:56:52.173192",
-    "expire_at": "2026-07-17T07:36:52.173192"
-  }
-]
+[]
