@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_133456_есхар",
-    "type": "drone",
-    "lat": 49.7953,
-    "lng": 36.5927,
-    "lon": 36.5927,
-    "label": "Есхар",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": 90,
-    "time": "00:27",
-    "created_at": "2026-07-17T00:27:23.493414",
-    "expire_at": "2026-07-17T01:07:23.493414"
-  },
-  {
     "id": "monitor1654_133473_ізюм",
     "type": "kab",
     "lat": 49.2081,
