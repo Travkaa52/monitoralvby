@@ -1,16 +1,1 @@
-[
-  {
-    "id": "monitor1654_133604_златопіль",
-    "type": "drone",
-    "lat": 49.3754,
-    "lng": 36.2143,
-    "lon": 36.2143,
-    "label": "Златопіль",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "11:03",
-    "created_at": "2026-07-17T11:03:50.573542",
-    "expire_at": "2026-07-17T11:43:50.573542"
-  }
-]
+[]
