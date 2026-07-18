@@ -1,33 +1,5 @@
 [
   {
-    "id": "monitor1654_134044_барвінкове",
-    "type": "drone",
-    "lat": 48.9035,
-    "lng": 37.0251,
-    "lon": 37.0251,
-    "label": "Барвінкове",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "20:09",
-    "created_at": "2026-07-18T20:09:11.936041",
-    "expire_at": "2026-07-18T20:49:11.936041"
-  },
-  {
-    "id": "monitor1654_134045_златопіль",
-    "type": "drone",
-    "lat": 49.3754,
-    "lng": 36.2143,
-    "lon": 36.2143,
-    "label": "Златопіль",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "20:09",
-    "created_at": "2026-07-18T20:09:31.151723",
-    "expire_at": "2026-07-18T20:49:31.151723"
-  },
-  {
     "id": "monitor1654_134047_чугуїв",
     "type": "drone",
     "lat": 49.8356,
