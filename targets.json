@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_134029_чугуїв",
-    "type": "drone",
-    "lat": 49.8356,
-    "lng": 36.6863,
-    "lon": 36.6863,
-    "label": "Чугуїв",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "19:18",
-    "created_at": "2026-07-18T19:18:50.283925",
-    "expire_at": "2026-07-18T19:58:50.283925"
-  },
-  {
     "id": "monitor1654_134036_ізюм",
     "type": "kab",
     "lat": 49.2081,
