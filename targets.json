@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_134047_чугуїв",
-    "type": "drone",
-    "lat": 49.8356,
-    "lng": 36.6863,
-    "lon": 36.6863,
-    "label": "Чугуїв",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "20:23",
-    "created_at": "2026-07-18T20:23:45.290789",
-    "expire_at": "2026-07-18T21:03:45.290789"
-  },
-  {
     "id": "monitor1654_134054_барвінкове",
     "type": "drone",
     "lat": 48.9035,
