@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "monitor1654_134855_бнр",
+    "type": "kab",
+    "lat": 50.27361,
+    "lng": 36.392,
+    "lon": 36.392,
+    "label": "БНР",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": 270,
+    "time": "18:11",
+    "created_at": "2026-07-21T18:11:00.548604",
+    "expire_at": "2026-07-21T18:51:00.548604"
+  }
+]
