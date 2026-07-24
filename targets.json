@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_135887_барвінкове",
-    "type": "drone",
-    "lat": 48.9035,
-    "lng": 37.0251,
-    "lon": 37.0251,
-    "label": "Барвінкове",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "21:03",
-    "created_at": "2026-07-24T21:03:33.478394",
-    "expire_at": "2026-07-24T21:43:33.478394"
-  },
-  {
     "id": "monitor1654_135892_ізюм",
     "type": "drone",
     "lat": 49.2081,
