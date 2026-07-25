@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_136044_ізюм",
-    "type": "missile",
-    "lat": 49.2081,
-    "lng": 37.2725,
-    "lon": 37.2725,
-    "label": "Ізюм",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "07:02",
-    "created_at": "2026-07-25T07:02:33.942624",
-    "expire_at": "2026-07-25T07:42:33.942624"
-  },
-  {
     "id": "monitor1654_136049_вовчанськ",
     "type": "missile",
     "lat": 50.2868,
