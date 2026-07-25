@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_136020_козача лопань",
-    "type": "kab",
-    "lat": 50.3412,
-    "lng": 36.1867,
-    "lon": 36.1867,
-    "label": "Козача Лопань",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "06:33",
-    "created_at": "2026-07-25T06:33:35.274763",
-    "expire_at": "2026-07-25T07:13:35.274763"
-  },
-  {
     "id": "monitor1654_136026_бнр",
     "type": "missile",
     "lat": 50.27361,
