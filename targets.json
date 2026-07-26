@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "monitor1654_136371_рогань",
+    "type": "drone",
+    "lat": 49.9258,
+    "lng": 36.4168,
+    "lon": 36.4168,
+    "label": "Рогань",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "07:04",
+    "created_at": "2026-07-26T07:04:48.994826",
+    "expire_at": "2026-07-26T07:44:48.994826"
+  }
+]
