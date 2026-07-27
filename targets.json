@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_136680_козача лопань",
-    "type": "kab",
-    "lat": 50.3412,
-    "lng": 36.1867,
-    "lon": 36.1867,
-    "label": "Козача Лопань",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "12:40",
-    "created_at": "2026-07-27T12:40:55.326235",
-    "expire_at": "2026-07-27T13:20:55.326235"
-  },
-  {
     "id": "monitor1654_136685_ізюм",
     "type": "kab",
     "lat": 49.2081,
