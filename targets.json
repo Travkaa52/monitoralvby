@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_137250_ізюм",
-    "type": "kab",
-    "lat": 49.2081,
-    "lng": 37.2725,
-    "lon": 37.2725,
-    "label": "Ізюм",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": 90,
-    "time": "12:09",
-    "created_at": "2026-07-29T12:09:17.287419",
-    "expire_at": "2026-07-29T12:49:17.287419"
-  },
-  {
     "id": "monitor1654_137253_бнр",
     "type": "drone",
     "lat": 50.27361,
@@ -54,5 +40,19 @@
     "time": "12:42",
     "created_at": "2026-07-29T12:42:17.346696",
     "expire_at": "2026-07-29T13:22:17.346696"
+  },
+  {
+    "id": "monitor1654_137270_ізюм",
+    "type": "drone",
+    "lat": 49.2081,
+    "lng": 37.2725,
+    "lon": 37.2725,
+    "label": "Ізюм",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "12:49",
+    "created_at": "2026-07-29T12:49:33.945346",
+    "expire_at": "2026-07-29T13:29:33.945346"
   }
 ]
