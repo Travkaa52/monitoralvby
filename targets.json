@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "monitor1654_137400_пісочин",
+    "type": "drone",
+    "lat": 49.9575,
+    "lng": 36.1139,
+    "lon": 36.1139,
+    "label": "Пісочин",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "23:10",
+    "created_at": "2026-07-29T23:10:03.744099",
+    "expire_at": "2026-07-29T23:50:03.744099"
+  }
+]
