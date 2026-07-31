@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_137736_буди",
-    "type": "drone",
-    "lat": 49.8915,
-    "lng": 36.0238,
-    "lon": 36.0238,
-    "label": "Буди",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "02:17",
-    "created_at": "2026-07-31T02:17:54.278144",
-    "expire_at": "2026-07-31T02:57:54.278144"
-  },
-  {
     "id": "monitor1654_137743_нова водолага",
     "type": "drone",
     "lat": 49.7181,
