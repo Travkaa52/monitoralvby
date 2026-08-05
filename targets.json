@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_139595_хтз",
-    "type": "drone",
-    "lat": 49.9443,
-    "lng": 36.3957,
-    "lon": 36.3957,
-    "label": "ХТЗ",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "17:10",
-    "created_at": "2026-08-05T17:10:28.933467",
-    "expire_at": "2026-08-05T17:50:28.933467"
-  },
-  {
     "id": "monitor1654_139598_буди",
     "type": "drone",
     "lat": 49.8915,
@@ -54,5 +40,19 @@
     "time": "17:47",
     "created_at": "2026-08-05T17:47:29.975006",
     "expire_at": "2026-08-05T18:27:29.975006"
+  },
+  {
+    "id": "monitor1654_139609_близнюки",
+    "type": "drone",
+    "lat": 48.8531,
+    "lng": 36.5518,
+    "lon": 36.5518,
+    "label": "Близнюки",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "17:50",
+    "created_at": "2026-08-05T17:50:52.123265",
+    "expire_at": "2026-08-05T18:30:52.123265"
   }
 ]
