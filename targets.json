@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_140086_чугуїв",
-    "type": "missile",
-    "lat": 49.8356,
-    "lng": 36.6863,
-    "lon": 36.6863,
-    "label": "Чугуїв",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "13:41",
-    "created_at": "2026-08-07T13:41:46.712591",
-    "expire_at": "2026-08-07T14:21:46.712591"
-  },
-  {
     "id": "monitor1654_140090_близнюки",
     "type": "drone",
     "lat": 48.8531,
@@ -40,5 +26,19 @@
     "time": "13:53",
     "created_at": "2026-08-07T13:53:25.481815",
     "expire_at": "2026-08-07T14:33:25.481815"
+  },
+  {
+    "id": "monitor1654_140097_близнюки",
+    "type": "drone",
+    "lat": 48.8531,
+    "lng": 36.5518,
+    "lon": 36.5518,
+    "label": "Близнюки",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "14:23",
+    "created_at": "2026-08-07T14:23:46.485162",
+    "expire_at": "2026-08-07T15:03:46.485162"
   }
 ]
