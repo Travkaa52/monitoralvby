@@ -1,33 +1,5 @@
 [
   {
-    "id": "monitor1654_140090_близнюки",
-    "type": "drone",
-    "lat": 48.8531,
-    "lng": 36.5518,
-    "lon": 36.5518,
-    "label": "Близнюки",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "13:51",
-    "created_at": "2026-08-07T13:51:15.659437",
-    "expire_at": "2026-08-07T14:31:15.659437"
-  },
-  {
-    "id": "monitor1654_140092_барвінкове",
-    "type": "drone",
-    "lat": 48.9035,
-    "lng": 37.0251,
-    "lon": 37.0251,
-    "label": "Барвінкове",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "13:53",
-    "created_at": "2026-08-07T13:53:25.481815",
-    "expire_at": "2026-08-07T14:33:25.481815"
-  },
-  {
     "id": "monitor1654_140097_близнюки",
     "type": "drone",
     "lat": 48.8531,
