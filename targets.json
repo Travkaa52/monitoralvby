@@ -26,5 +26,33 @@
     "time": "07:42",
     "created_at": "2026-08-09T07:42:55.859578",
     "expire_at": "2026-08-09T08:22:55.859578"
+  },
+  {
+    "id": "monitor1654_140690_бнр",
+    "type": "drone",
+    "lat": 50.27361,
+    "lng": 36.392,
+    "lon": 36.392,
+    "label": "БНР",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "07:53",
+    "created_at": "2026-08-09T07:53:39.701326",
+    "expire_at": "2026-08-09T08:33:39.701326"
+  },
+  {
+    "id": "monitor1654_140691_нова водолага",
+    "type": "drone",
+    "lat": 49.7181,
+    "lng": 35.8601,
+    "lon": 35.8601,
+    "label": "Нова Водолага",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "07:53",
+    "created_at": "2026-08-09T07:53:49.258012",
+    "expire_at": "2026-08-09T08:33:49.258012"
   }
 ]
