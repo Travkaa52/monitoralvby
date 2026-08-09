@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_140679_близнюки",
-    "type": "drone",
-    "lat": 48.8531,
-    "lng": 36.5518,
-    "lon": 36.5518,
-    "label": "Близнюки",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "07:01",
-    "created_at": "2026-08-09T07:01:31.788017",
-    "expire_at": "2026-08-09T07:41:31.788017"
-  },
-  {
     "id": "monitor1654_140685_вовчанськ",
     "type": "missile",
     "lat": 50.2868,
@@ -26,5 +12,19 @@
     "time": "07:30",
     "created_at": "2026-08-09T07:30:00.988477",
     "expire_at": "2026-08-09T08:10:00.988477"
+  },
+  {
+    "id": "monitor1654_140689_близнюки",
+    "type": "drone",
+    "lat": 48.8531,
+    "lng": 36.5518,
+    "lon": 36.5518,
+    "label": "Близнюки",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "07:42",
+    "created_at": "2026-08-09T07:42:55.859578",
+    "expire_at": "2026-08-09T08:22:55.859578"
   }
 ]
