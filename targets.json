@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "monitor1654_141143_близнюки",
+    "type": "drone",
+    "lat": 48.8531,
+    "lng": 36.5518,
+    "lon": 36.5518,
+    "label": "Близнюки",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "22:40",
+    "created_at": "2026-08-10T22:40:18.658854",
+    "expire_at": "2026-08-10T23:20:18.658854"
+  }
+]
