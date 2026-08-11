@@ -1,16 +1,1 @@
-[
-  {
-    "id": "monitor1654_141250_ізюм",
-    "type": "missile",
-    "lat": 49.2081,
-    "lng": 37.2725,
-    "lon": 37.2725,
-    "label": "Ізюм",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "12:20",
-    "created_at": "2026-08-11T12:20:43.634449",
-    "expire_at": "2026-08-11T13:00:43.634449"
-  }
-]
+[]
