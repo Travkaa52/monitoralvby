@@ -1,33 +1,5 @@
 [
   {
-    "id": "monitor1654_141330_кочеток",
-    "type": "drone",
-    "lat": 49.872,
-    "lng": 36.7254,
-    "lon": 36.7254,
-    "label": "Кочеток",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "20:15",
-    "created_at": "2026-08-11T20:15:07.236062",
-    "expire_at": "2026-08-11T20:55:07.236062"
-  },
-  {
-    "id": "monitor1654_141331_чугуїв",
-    "type": "drone",
-    "lat": 49.8356,
-    "lng": 36.6863,
-    "lon": 36.6863,
-    "label": "Чугуїв",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "20:15",
-    "created_at": "2026-08-11T20:15:27.149544",
-    "expire_at": "2026-08-11T20:55:27.149544"
-  },
-  {
     "id": "monitor1654_141335_златопіль",
     "type": "drone",
     "lat": 49.3754,
@@ -40,5 +12,19 @@
     "time": "20:21",
     "created_at": "2026-08-11T20:21:03.830088",
     "expire_at": "2026-08-11T21:01:03.830088"
+  },
+  {
+    "id": "monitor1654_141361_коротич",
+    "type": "drone",
+    "lat": 49.9517,
+    "lng": 36.0395,
+    "lon": 36.0395,
+    "label": "Коротич",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "20:55",
+    "created_at": "2026-08-11T20:55:04.137251",
+    "expire_at": "2026-08-11T21:35:04.137251"
   }
 ]
