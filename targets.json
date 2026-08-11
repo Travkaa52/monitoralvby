@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_141335_златопіль",
-    "type": "drone",
-    "lat": 49.3754,
-    "lng": 36.2143,
-    "lon": 36.2143,
-    "label": "Златопіль",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "20:21",
-    "created_at": "2026-08-11T20:21:03.830088",
-    "expire_at": "2026-08-11T21:01:03.830088"
-  },
-  {
     "id": "monitor1654_141361_коротич",
     "type": "drone",
     "lat": 49.9517,
