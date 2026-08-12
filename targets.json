@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_141449_слатине",
-    "type": "recon",
-    "lat": 50.2117,
-    "lng": 36.1517,
-    "lon": 36.1517,
-    "label": "Слатине",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "05:09",
-    "created_at": "2026-08-12T05:09:18.488647",
-    "expire_at": "2026-08-12T05:49:18.488647"
-  },
-  {
     "id": "monitor1654_141470_вовчанськ",
     "type": "kab",
     "lat": 50.2868,
