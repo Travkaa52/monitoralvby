@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "id": "monitor1654_142087_рогань",
+    "type": "drone",
+    "lat": 49.9258,
+    "lng": 36.4168,
+    "lon": 36.4168,
+    "label": "Рогань",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "23:06",
+    "created_at": "2026-08-13T23:06:25.009494",
+    "expire_at": "2026-08-13T23:46:25.009494"
+  },
+  {
+    "id": "monitor1654_142088_козача лопань",
+    "type": "kab",
+    "lat": 50.3412,
+    "lng": 36.1867,
+    "lon": 36.1867,
+    "label": "Козача Лопань",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "23:07",
+    "created_at": "2026-08-13T23:07:10.880010",
+    "expire_at": "2026-08-13T23:47:10.880010"
+  }
+]
