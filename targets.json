@@ -1,19 +1,5 @@
 [
   {
-    "id": "monitor1654_141930_вовчанськ",
-    "type": "kab",
-    "lat": 50.2868,
-    "lng": 36.9366,
-    "lon": 36.9366,
-    "label": "Вовчанськ",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "11:33",
-    "created_at": "2026-08-13T11:33:27.714655",
-    "expire_at": "2026-08-13T12:13:27.714655"
-  },
-  {
     "id": "monitor1654_141939_ізюм",
     "type": "kab",
     "lat": 49.2081,
