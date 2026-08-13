@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "monitor1654_141736_кочеток",
+    "type": "drone",
+    "lat": 49.872,
+    "lng": 36.7254,
+    "lon": 36.7254,
+    "label": "Кочеток",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "00:00",
+    "created_at": "2026-08-13T00:00:06.414219",
+    "expire_at": "2026-08-13T00:40:06.414219"
+  }
+]
