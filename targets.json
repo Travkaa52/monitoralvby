@@ -26,5 +26,33 @@
     "time": "23:07",
     "created_at": "2026-08-13T23:07:10.880010",
     "expire_at": "2026-08-13T23:47:10.880010"
+  },
+  {
+    "id": "monitor1654_142091_слатине",
+    "type": "kab",
+    "lat": 50.2117,
+    "lng": 36.1517,
+    "lon": 36.1517,
+    "label": "Слатине",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "23:08",
+    "created_at": "2026-08-13T23:08:16.828240",
+    "expire_at": "2026-08-13T23:48:16.828240"
+  },
+  {
+    "id": "monitor1654_142093_бнр",
+    "type": "kab",
+    "lat": 50.27361,
+    "lng": 36.392,
+    "lon": 36.392,
+    "label": "БНР",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": 270,
+    "time": "23:10",
+    "created_at": "2026-08-13T23:10:56.455626",
+    "expire_at": "2026-08-13T23:50:56.455626"
   }
 ]
