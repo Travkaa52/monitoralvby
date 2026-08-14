@@ -1,16 +1,1 @@
-[
-  {
-    "id": "monitor1654_142217_харків",
-    "type": "drone",
-    "lat": 49.993,
-    "lng": 36.233,
-    "lon": 36.233,
-    "label": "Харків",
-    "source": "monitor1654",
-    "direction": null,
-    "bearing": null,
-    "time": "08:14",
-    "created_at": "2026-08-14T08:14:31.022134",
-    "expire_at": "2026-08-14T08:54:31.022134"
-  }
-]
+[]
