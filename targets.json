@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "monitor1654_142374_коротич",
+    "type": "drone",
+    "lat": 49.9517,
+    "lng": 36.0395,
+    "lon": 36.0395,
+    "label": "Коротич",
+    "source": "monitor1654",
+    "direction": null,
+    "bearing": null,
+    "time": "03:05",
+    "created_at": "2026-08-15T03:05:03.934397",
+    "expire_at": "2026-08-15T03:45:03.934397"
+  }
+]
